@@ -1,0 +1,25 @@
+---      
+  - name: Stopping firewalld.service
+    systemd:
+      name: firewalld.service
+      state: stopped
+      enabled: no
+    register: status
+  - name: test1
+    debug: msg="{{status}}"
+    when: status is failed
+      
+  - name: Stopping selinux temptory
+    shell: setenforce 0
+    ignore_errors: yes
+    register: status
+  - name: test1
+    debug: msg="{{status}}"
+    when: status is failed
+    
+  - name: Stopping selinux permanent
+    lineinfile:
+      dest: /etc/selinux/config
+      regexp: "SELINUX=enforcing"   
+      line: "SELINUX=disalbed" 
+      create: yes      

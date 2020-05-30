@@ -1,0 +1,9 @@
+hive:
+  metastore:
+    thriftAddress: {{hive_metastore}}
+    port: 9083
+  hiveserver2:
+    driver: org.apache.hive.jdbc.HiveDriver
+    url:
+    uname: hive
+    password: hive

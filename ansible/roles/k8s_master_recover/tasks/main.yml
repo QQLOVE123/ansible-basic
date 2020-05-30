@@ -1,0 +1,118 @@
+---             
+    - name: Deleting lo:0
+      shell: ifconfig lo:0
+      
+    - name: Getting kubeadm rpm
+      shell: rpm -qa|grep kubeadm | wc -l
+      register: result
+
+    - name: Resetting k8s
+      shell: kubeadm reset -f
+      when: result.stdout !='0'
+
+#    - name: Getting nodes master02
+#      shell: kubectl get nodes |grep master02 |wc -l
+#      register: result
+      
+    - name: Deleting nodes {{inventory_hostname}}
+      shell: kubectl delete nodes {{inventory_hostname}}
+      ignore_errors: yes
+#      when: result.stdout != '0'
+
+    - name: Getting docker rpm
+      shell: rpm -qa|grep docker | wc -l
+      register: result
+                  
+    - name: Stopping docker
+      systemd:
+        name: docker
+        state: stopped
+      when: result.stdout !='0'
+              
+    - name: Uninstalling 
+      yum:
+        name: "{{item.name}}"
+        state: removed
+      with_items:
+        - {name: docker}
+        - {name: docker-common}
+        - {name: docker-client}
+        - {name: kubernetes-cni}
+        - {name: kubelet}
+        - {name: kubeadm}
+        - {name: kubectl}
+            
+    - name: Deleting old files
+      file:
+        path: "{{item.path}}"   
+        state: absent
+      with_items:
+        - {path: /root/.kube}  
+        - {path: /etc/kubernetes}
+        - {path: /etc/systemd/system/kubelet.service.d}  
+        - {path: /etc/systemd/system/kubelet.service}  
+        - {path: /usr/bin/kubeadm} 
+        - {path: /usr/bin/kubectl} 
+        - {path: /usr/bin/kubefed} 
+        - {path: /usr/bin/kubelet}   
+        - {path: /etc/cni}     
+        - {path: /opt/cni}    
+        - {path: /var/lib/etcd} 
+        - {path: /var/etcd}
+
+    - name: Setting hostname
+      shell: "hostnamectl set-hostname {{inventory_hostname}}"
+        
+    - name: Copying files to remote host
+      copy:  
+        src: "{{item.src}}"
+        dest: /home/ 
+      with_items:
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/k8s}     
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/docker}   
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/completion}  
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/k8s_yml}  
+      
+    - name: Installing docker
+      shell: rpm -ivh /home/docker/*rpm --force --nodeps 
+
+    - name: Configing 
+      template:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+      with_items:
+        - {src: daemon.json,dest: /etc/docker/}
+        - {src: kubeadm-config.yaml ,dest: /root/ }
+        - {src: cert-other-master.sh ,dest: /root/ }
+      
+    - name: Installing k8s
+      shell: |
+        rpm -ivh /home/k8s/* --force --nodeps 
+
+    - name: Configing ip_forward
+      shell:  echo "1" > /proc/sys/net/ipv4/ip_forward
+
+    - name: Restarting docker
+      systemd:
+        name: docker
+        state: restarted
+        enabled: yes
+        
+    - name: Configing bash_profile
+      lineinfile:
+        path: ~/.bash_profile
+        line: 'export KUBECONFIG=/etc/kubernetes/admin.conf'
+        create: yes
+
+    - name: Sourcing bash_profile
+      shell: |
+        source ~/.bash_profile
+        
+    - name: Copying cert files
+      shell: sh /root/cert-other-master.sh
+      
+    - name: Joining k8s_master01
+      command: "{{join_line}}  --control-plane"
+                                  
+
+        

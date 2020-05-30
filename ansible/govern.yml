@@ -1,0 +1,27 @@
+######################################
+#描述：部署大数据治理平台
+#作者：wangzhenqii@cecdat.con
+#时间：2020年04月16日
+#版权：中电（福建）健康医疗大数据运营服务有限公司
+######################################
+---
+- hosts: mysql_govern
+  roles:
+    - {role: govern_mysql}
+  tags:
+    - govern_mysql
+- hosts: mysql_govern
+  roles:
+    - {role: govern_mysql_update}
+  tags:
+    - govern_mysql_update
+- hosts: govern
+  roles:
+    - {role: govern}
+  tags:
+    - govern
+- hosts: govern
+  roles:
+    - {role: govern_update}
+  tags:
+    - govern_update

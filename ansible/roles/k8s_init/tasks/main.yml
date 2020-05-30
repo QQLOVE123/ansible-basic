@@ -1,0 +1,34 @@
+---  
+   
+  - name: Copying hosts to remote
+    template:
+      src: hosts
+      dest: /etc/       
+              
+  - name: Disabled swap
+    shell: swapoff -a
+    
+  - name: Disabled swap permanently
+    lineinfile:
+      path: /etc/fstab
+      regexp: '/dev/mapper/centos-swap'
+      state: absent
+
+  - name: Adding br_netfilter
+    shell: modprobe br_netfilter
+            
+  - name: Adding br_netfilter permanently
+    template:
+      src: "{{item.src}}"
+      dest: "{{item.dest}}"
+      mode: 0755
+    with_items:
+      - {src: rc.sysinit,dest: /etc/}
+      - {src: br_netfilter.modules,dest: /etc/sysconfig/modules/}
+      - {src: k8s.conf,dest: /etc/sysctl.d/}     
+            
+  - name: Setting bridge
+    shell: |
+      sysctl net.bridge.bridge-nf-call-iptables=1
+      sysctl net.bridge.bridge-nf-call-ip6tables=1
+      sysctl -p /etc/sysctl.d/k8s.conf

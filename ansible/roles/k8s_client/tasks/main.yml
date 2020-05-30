@@ -1,0 +1,44 @@
+---  
+    - name: Uninstalling 
+      yum:
+        name: "{{item.name}}"
+        state: removed
+      with_items:
+        - {name: kubectl}
+            
+    - name: Deleting old files
+      file:
+        path: "{{item.path}}"   
+        state: absent
+      with_items:
+        - {path: /usr/bin/kubectl}
+      
+    - name: Copying files to remote host
+      copy:  
+        src: "{{item.src}}"
+        dest: /home/ 
+      with_items:
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/k8s}     
+      
+    - name: Installing kubelet
+      shell: |
+        rpm -ivh /home/k8s/*  --force --nodeps 
+        
+    - name: Copying admin.conf to remote
+      template:
+        src: admin.conf
+        dest: /etc/kubernetes
+
+    - name: Configing bash_profile
+      lineinfile:
+        path: ~/.bash_profile
+        line: 'export KUBECONFIG=/etc/kubernetes/admin.conf'
+        create: yes
+
+    - name: Sourcing bash_profile
+      shell: |
+        source ~/.bash_profile
+        
+                                  
+
+        

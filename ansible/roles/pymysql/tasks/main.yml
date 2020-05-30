@@ -1,0 +1,44 @@
+---
+    - name: Creating directory /opt/deploy/rpm/mysql/
+      file:
+        name: /opt/deploy/rpm/mysql
+        state: directory
+
+    - name: Copying PyMySQL packages
+      copy: 
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+      with_items:
+        - {src: /etc/ansible/roles/pymysql/files/PyMySQL-0.9.3.tar.gz,dest: /opt/deploy}
+        - {src: /etc/ansible/roles/pymysql/files/MySQL-python-1.2.5-1.el7.x86_64.rpm,dest: /opt/deploy/rpm/mysql/}
+
+    - name: Copying PyMySQL-0.9.3.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/PyMySQL-0.9.3.tar.gz |wc -l
+      register: result
+      failed_when: result.stdout =='0'
+    
+    - name: Copying successfully
+      debug: msg='成功复制PyMySQL包到服务器{{IP}}'
+    
+    - name: Unarchiving PyMySQL packages
+      unarchive: 
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        creates: '{{item.creates}}'
+        remote_src: yes
+      with_items:
+        - {src: /opt/deploy/PyMySQL-0.9.3.tar.gz,dest: /opt/deploy,creates: /opt/deploy/PyMySQL-0.9.3}
+
+    - name: Unarchiving PyMySQL-0.9.3.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/PyMySQL-0.9.3 |wc -l
+      register: result
+      failed_when: result.stdout =='0'
+    
+    - name: Unarchiving successfully
+      debug: msg='成功解压PyMySQL包到服务器{{IP}}'    
+      
+    - name: Installing PyMySQL 
+      shell: |
+        cd /opt/deploy/PyMySQL-0.9.3
+        python setup.py install
+        rpm -ivh /opt/deploy/rpm/mysql/MySQL-python-1.2.5-1.el7.x86_64.rpm --nodeps --force

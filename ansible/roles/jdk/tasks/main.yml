@@ -1,0 +1,73 @@
+---
+    - name: Creating remote directory
+      file:
+        path: /opt/deploy/jdk/
+        state: directory
+        
+    - name: Copying rpm packages to remote server
+      copy:
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        owner: root
+        group: root
+        mode: 0755
+      with_items:
+        - {src: '/etc/ansible/roles/jdk/files',dest: /opt/deploy/jdk/}
+        
+    - name: Removing openjdk
+      yum:
+        name: "{{item.name}}"
+        state: "{{item.state}}"
+      with_items:
+        - {name: java-1.7.0-openjdk-headless.x86_64,state: absent}
+        - {name: java-1.8.0-openjdk-headless.x86_64,state: absent}
+      
+    - name: Removing old jdk files
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+      with_items:
+        - {path: '/usr/local/jdk1.8.0_191',state: 'absent'}
+        - {path: '/usr/bin/java',state: 'absent'}
+        - {path: '/usr/bin/jar',state: 'absent'}
+      
+    - name: Unarchiving jdk package
+      unarchive:
+        src: /opt/deploy/jdk/files/jdk-8u191-linux-x64.tar.gz
+        dest: /usr/local
+        creates: /usr/local/jdk1.8.0_191
+        remote_src: yes 
+        
+    - name: Create java link
+      file:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+        state: "{{item.state}}"
+      with_items:
+        - {src: /usr/local/jdk1.8.0_191/bin/java,dest: /usr/bin/java,state: link}
+        - {src: /usr/local/jdk1.8.0_191/bin/jar,dest: /usr/bin/jar,state: link}
+        - {src: /usr/local/jdk1.8.0_191/bin/jps,dest: /usr/bin/jps,state: link}
+ 
+    - name: Configing JAVA_HOME
+      lineinfile:
+        path: /etc/profile
+        line: 'export JAVA_HOME=/usr/local/jdk1.8.0_191'
+        create: yes
+
+    - name: Sourcing JAVA_HOME
+      shell: source /etc/profile
+       
+    - name: Jdk installed unsuccessfully
+      shell: ls /usr/local/jdk1.8.0_191/bin/java
+      register: result
+      ignore_errors: true
+      failed_when: result.stdout.find('1.8.0_191') == -1
+
+    - name: Setting JAVA_HOME
+      shell: |
+        echo "export JAVA_HOME=/usr/local/jdk1.8.0_191" >> /etc/profile
+        source /etc/profile
+      
+    - name: Jdk installed successfully
+      debug: msg="服务器{{IP}}已成功部署jdk1.8.0_191"
+      

@@ -1,0 +1,12 @@
+---
+    # - name: Waiting test0
+      # wait_for:
+        # path: /opt/wzq/test0
+        # state: present
+        # msg: "等待test被创建"
+        
+    # - name: Printing finished
+      # debug: msg="/opt/wzq/test0已生成"    
+    - name: Unarchiveing
+      debug: msg={{result.stdout}}
+        

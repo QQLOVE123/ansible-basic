@@ -1,0 +1,39 @@
+######################################
+#描述：部署授权平台
+#作者：wangzhenqii@cecdat.con
+#时间：2020年04月16日
+#版权：中电（福建）健康医疗大数据运营服务有限公司
+######################################
+---
+- hosts: postgres_master 
+  roles:
+    - {role: uac_pg}
+  tags:
+  - uac_pg
+- hosts: postgres_master
+  roles:
+    - {role: uac_pg_update}
+  tags:
+  - uac_pg_update
+- hosts: uacenter #slave服务器部署pg
+  roles:
+    - {role: uacenter}
+  tags:
+  - uacenter
+- hosts: uacenter #slave服务器部署pg
+  roles:
+    - {role: uacenter_update}
+  tags:
+  - uacenter_update
+- hosts: auth_web #master上验证HA
+  roles:
+    - {role: auth_web}
+  tags:
+  - auth_web
+- hosts: auth_web #master上验证HA
+  roles:
+    - {role: auth_web_update}
+  tags:
+  - auth_web_update
+
+

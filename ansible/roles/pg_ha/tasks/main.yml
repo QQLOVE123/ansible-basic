@@ -1,0 +1,16 @@
+---     
+    - name: Selecting HA hosts from pg-10  
+      become: yes
+      become_user: postgres
+      shell: psql -c "select client_addr,sync_state from pg_stat_replication;"
+      register: result
+      
+    - name: Check pg HA
+      debug: msg="postgresql-10主从流复制HA部署未成功,请排查原因"
+      when: 
+        - result.stdout.find('0 rows') !=-1 
+        
+    - name: Check pg HA
+      debug: msg="postgresql-10主从流复制HA部署成功"
+      when: 
+        - result.stdout.find('0 rows') ==-1  

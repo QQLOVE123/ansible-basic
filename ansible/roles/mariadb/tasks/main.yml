@@ -1,0 +1,123 @@
+---
+    - name: Stopping mysqld/mariadb  
+      systemd:
+        name: "{{item.app}}"
+        state: stopped
+      with_items:
+        - {app: mysqld.service}
+        - {app: mariadb.service}
+      ignore_errors: yes
+
+    - name: Mysql/mariadb stopped unsuccessfully 
+      shell: "ps -ef |grep {{item.app}} |grep -v grep | wc -l"
+      with_items:
+        - {app: /usr/sbin/mysqld}
+        - {app: mariadb}
+      register: result
+      failed_when: result.stdout != '0'
+
+    - name: Mysql/mariadb stopped successfully 
+      debug: msg='mysql/mariadb进程停止成功'
+
+    - name: Checking whether mysqld/mariadb rpm exists 
+      shell: "rpm -qa |grep {{item.app}} |wc -l"
+      with_items:
+        - {app: mysql}
+        - {app: mariadb}
+      register: result 
+
+    - name: Uninstalling mysqld/mariadb by yum
+      yum: 
+        name: mariadb
+        state: absent
+      
+    - name: Uninstalling mysqld/mariadb 
+      shell: |            
+        rpm -qa |grep mysql |awk '{print $0}'|xargs rpm -e --nodeps
+        rpm -qa |grep mariadb |awk '{print $0}'|xargs rpm -e --nodeps
+      ignore_errors: yes        
+
+    - name: Checking whether mysqld/mariadb  rpm uninstalled 
+      shell: "rpm -qa |grep {{item.app|quote}} |wc -l"
+      with_items:
+        - {app: mysql}
+        - {app: mariadb}
+      register: result 
+      
+    - name: Mysql/Mariadb uninstalled unsuccessfully 
+      shell: "rpm -qa |grep {{item.app|quote}} |wc -l"
+      with_items:
+        - {app: mysql}
+        - {app: mariadb}
+      register: result
+      failed_when: result.stdout != '0'
+
+    - name: Mysql/Mariadb uninstalled successfully
+      debug: msg='mysql/mariadb卸载成功rmp包'
+      
+    - name: Removing mysql/mariadb files   
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+      with_items:
+        - {path: '/usr/share/mysql',state: 'absent'}
+        - {path: '/usr/lib64/mysql',state: 'absent'}
+        - {path: '/usr/include/mysql',state: 'absent'}
+        - {path: '/usr/bin/mysql',state: 'absent'}
+        - {path: '/usr/share/man/man1/mysql.1.gz',state: 'absent'}
+        - {path: '/etc/my.cnf',state: 'absent'}
+        - {path: '/usr/share/mariadb',state: 'absent'}
+        - {path: '/usr/bin/mysql_secure_installation',state: 'absent'}
+        - {path: '/usr/share/man/man1/mysql_secure_installation.1.gz',state: 'absent'}
+        - {path: '/var/lib/mysql',state: 'absent'}
+         
+      
+    - name: Installing mariadb
+      yum: 
+        name: mariadb-server
+        state: latest
+
+    - name: Starting mariadb 
+      systemd:
+        name: "{{item.name}}"
+        state: "{{item.state}}"
+        enabled: "{{item.enabled}}"
+      register: status
+      failed_when:
+        - status is failed
+        - item.state != "started"
+      with_items:
+        - {name: mariadb.service, state: started,enabled: yes}
+        
+    - name: Mariadb started unsuccessfully
+      shell: ss -ntl |grep 3306 |wc -l
+      register: result
+      failed_when: result.stdout == '0'
+      
+    - name: Mariadb started successfully
+      debug: msg="服务器{{IP}}mariadb启动成功"
+      
+#安装mariadb安全组件
+    - name: Installing mysql_secure_installation
+      expect:
+        command: mysql_secure_installation
+        responses:
+          (?i)(enter for none):
+            - ""
+          (?i)(Set root password):
+            - "y"
+          (?i)(New password):
+            - "{{mysql_root_pwd}}"
+          (?i)(Re-enter new password):
+            - "{{mysql_root_pwd}}"
+          (?i)(Remove anonymous users):
+            - "y"
+          (?i)(Disallow root login remotely):
+            - "n"
+          (?i)(Remove test database and access to it):
+            - "y" 
+          (?i)(Reload privilege tables now):
+            - "y"  
+          
+          
+      

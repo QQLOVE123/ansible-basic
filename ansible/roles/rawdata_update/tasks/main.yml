@@ -1,0 +1,166 @@
+---    
+
+      
+    - name: Stoping app 
+      become_user: rawdata
+      become: yes
+      shell: |
+        cd /app/rawdata/taskserver/taskserver/bin
+        sh shutdown.sh
+      args:
+        removes: /app/rawdata/taskserver/taskserver/bin
+      
+    - name: Stoping app 
+      become_user: dsm
+      become: yes
+      shell: |
+        cd /app/dsm/dsmserver/dsmserver/bin
+        sh shutdown.sh
+      args:
+        removes: /app/dsm/dsmserver/dsmserver/bin
+
+    - name: Checking whether app  stopped successfully
+      shell: ps -ef | grep java |grep -E 'TaskServerApp|DsmServerApp' |grep -v grep | wc -l
+      register: result
+      
+    - name: Stoping app force
+      shell: |
+        ps -ef | grep java |grep -E 'TaskServerApp|DsmServerApp' |grep -v grep |awk '{print $2}'|xargs kill -9
+      when: result.stdout != '0'
+      
+    - name: Unarchiving rawdata package
+      unarchive:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+        owner: "{{item.name}}"
+        group: "{{item.name}}"
+      with_items:
+        - {src: "/etc/ansible/roles/rawdata_update/files/{{rawdata_version}}.zip",dest: /app/rawdata/rawdata,name: rawdata}
+        - {src: "/etc/ansible/roles/rawdata_update/files/{{taskserver_version}}.zip",dest: /app/rawdata/taskserver,name: rawdata}
+        - {src: "/etc/ansible/roles/rawdata_update/files/{{dsmserver_version}}.zip",dest: /app/dsm/dsmserver,name: dsm}
+        
+    - name: Removing link
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"    
+      with_items:
+        - {path: /app/rawdata/rawdata/rawdata,state: absent}
+        - {path: /app/rawdata/taskserver/taskserver,state: absent}
+        - {path: /app/dsm/dsmserver/dsmserver,state: absent}
+    
+    - name: Creating link
+      file:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+        state: "{{item.state}}"
+        group: "{{item.name}}"
+        owner: "{{item.name}}"
+      with_items:
+        - {src: "/app/rawdata/rawdata/{{rawdata_version}}",dest: /app/rawdata/rawdata/rawdata,state: link,name: rawdata}
+        - {src: "/app/rawdata/taskserver/{{taskserver_version}}",dest: /app/rawdata/taskserver/taskserver,state: link,name: rawdata}
+        - {src: "/app/dsm/dsmserver/{{dsmserver_version}}",dest: /app/dsm/dsmserver/dsmserver,state: link,name: dsm}
+
+    - name: Configing application-hive_dsmserver.yml
+      template:
+        src: application-hive_dsmserver.yml
+        dest: /app/dsm/dsmserver/dsmserver/config/application-hive.yml
+        owner: dsm
+        group: dsm
+
+    - name: Configing application-datasource_dsmserver.yml
+      template:
+        src: application-datasource_dsmserver.yml
+        dest: /app/dsm/dsmserver/dsmserver/config/application-datasource.yml
+        owner: dsm
+        group: dsm
+
+    - name: Configing application-datasource_taskserver.yml
+      template:
+        src: application-datasource_taskserver.yml
+        dest: /app/rawdata/taskserver/taskserver/config/application-datasource.yml
+        owner: rawdata
+        group: rawdata
+        
+    - name: Creating directory hdfs
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+        owner: dsm
+        group: dsm
+      with_items:
+        - {path: /app/dsm/dsmserver/dsmserver/hdfs,state: directory}
+        
+    - name: Configing rawdata
+      become_user: rawdata
+      become: yes
+      shell: |
+        cp  /etc/hadoop/2.6.5.0-292/0/core-site.xml /app/rawdata/rawdata/rawdata
+        cp  /etc/hadoop/2.6.5.0-292/0/hdfs-site.xml /app/rawdata/rawdata/rawdata
+        cp  /etc/hive/2.6.5.0-292/0/hive-site.xml /app/rawdata/rawdata/rawdata
+        
+    - name: Configing dsm
+      become_user: dsm
+      become: yes
+      shell: |
+        cp  /etc/hadoop/2.6.5.0-292/0/core-site.xml /app/dsm/dsmserver/dsmserver/hdfs
+        cp  /etc/hadoop/2.6.5.0-292/0/hdfs-site.xml /app/dsm/dsmserver/dsmserver/hdfs
+        cp  /etc/hive/2.6.5.0-292/0/hive-site.xml /app/dsm/dsmserver/dsmserver/hdfs
+        
+    - name: Configing rawdata
+      become_user: hdfs
+      become: yes
+      shell: |
+        hdfs dfs -rm -r -f /user/oozie/kafka2hive/rawdata
+        hdfs dfs -mkdir -p /user/oozie/kafka2hive/rawdata
+        hdfs dfs -put /app/rawdata/rawdata/rawdata/* /user/oozie/kafka2hive/rawdata/
+        
+    - name: Starting app 
+      become_user: "{{item.name}}"
+      become: yes
+      shell: |
+        sh startup.sh
+      args:
+        chdir: "{{item.chdir}}"
+      with_items:
+        - {chdir: "/app/rawdata/taskserver/{{taskserver_version}}/bin",name: root}
+        - {chdir: /app/dsm/dsmserver/dsmserver/bin,name: dsm}  
+              
+    - name: Checking whether app  started successfully
+      shell: ps -ef | grep java |grep TaskServerApp |grep -v grep | wc -l
+      register: result
+      
+    - name: starting successfully
+      debug: msg="服务器{{IP}}启动TaskServerApp成功"
+      when: result.stdout != '0'
+      
+    - name: starting unsuccessfully
+      fail: msg="服务器{{IP}}启动TaskServerApp失败"
+      when: result.stdout == '0'
+        
+    - name: Checking whether app  started successfully
+      shell: ps -ef | grep java |grep DsmServerApp |grep -v grep | wc -l
+      register: result
+      
+    - name: starting successfully
+      debug: msg="服务器{{IP}}启动DsmServerApp成功"
+      when: result.stdout != '0'
+      
+    - name: starting unsuccessfully
+      fail: msg="服务器{{IP}}启动DsmServerApp失败"
+      when: result.stdout == '0'
+      
+      
+      
+        
+      
+        
+
+        
+        
+      
+
+
+    
+  
+  
+   

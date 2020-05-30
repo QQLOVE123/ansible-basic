@@ -1,0 +1,101 @@
+---  
+#ambari_server 
+    - name: Creating directory /home/rpm/ambari/
+      file:  
+        path: /home/rpm/ambari
+        state: directory
+        
+    - name: Copying rpm to remote host
+      copy:  
+        src: /etc/ansible/roles/ambari_server/files/rpm
+        dest: /home/rpm/ambari       
+      
+    - name: Installing rpm
+      shell: rpm -ivh /home/rpm/ambari/rpm/* --force --nodeps 
+      
+    - name: Setting ulimit
+      shell: ulimit -n 100001
+    
+    - name: Setting limits
+      lineinfile:
+        dest: /etc/security/limits.conf
+        line: "{{item.word}}"
+        create: yes
+      with_items:
+        - {word: '* soft nproc 100001'}
+        - {word: '* hard nproc 100001'}
+        - {word: '* soft nofile 100001'}
+        - {word: '* hard nofile 100001'}
+        
+    - name: Setting sysctl
+      lineinfile:
+        dest: /etc/sysctl.conf
+        line: "{{item.word}}"
+        create: yes
+      with_items:
+        - {word: 'fs.file-max=100001'}
+        
+    - name: Removing ambari-agent
+      yum:
+        name: ambari-agent
+        state: absent   
+        
+    - name: Installing ambari-agent
+      yum:
+        name: ambari-agent
+        state: latest   
+
+    - name: Restarting ambari-agent
+      shell: ambari-agent restart      
+ 
+    - name: Enabling ambari-agent
+      systemd:
+        name: ambari-agent 
+        enabled: yes
+        
+            
+    - name: Configing cert-verification.cfg
+      replace:
+        dest: /etc/python/cert-verification.cfg
+        regexp: 'verify=platform_default'
+        replace: 'verify=disable'     
+
+    - name: Configing ambari-agent.ini 1
+      replace:
+        dest: /etc/ambari-agent/conf/ambari-agent.ini
+        regexp: 'force_https_protocol=PROTOCOL_TLSv1_2'
+        replace: '[security]'     
+
+    - name: Configing ambari-agent.ini 2
+      replace:
+        dest: /etc/ambari-agent/conf/ambari-agent.ini
+        regexp: '${node1_ip}'
+        replace: 'localhost'     
+        
+    - name: Configing /etc/rc.local 
+      lineinfile:
+        dest: /etc/rc.local
+        line: 'ambari-agent restart' 
+        create: yes    
+      
+    - name: Installing libstdc
+      yum: 
+        name: nss-softokn-freebl
+        state: latest    
+        
+    - name: Installing libstdc
+      yum: 
+        name: libstdc++
+        state: latest
+        
+    - name: Installing libstdc
+      yum: 
+        name: libstdc++.so.6
+        state: present
+        
+    - name: Removing files
+      file: 
+        name: /usr/lib/impala/lib
+        state: absent
+
+        

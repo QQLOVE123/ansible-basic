@@ -1,0 +1,133 @@
+---  
+    - name: Getting kubeadm rpm
+      shell: rpm -qa|grep kubeadm | wc -l
+      register: result
+
+    - name: Resetting k8s
+      shell: kubeadm reset -f
+      when: result.stdout !='0'
+
+    - name: Getting docker rpm
+      shell: rpm -qa|grep docker | wc -l
+      register: result
+                  
+    - name: Stopping docker
+      systemd:
+        name: docker
+        state: stopped
+      when: result.stdout !='0'
+        
+    - name: Uninstalling 
+      yum:
+        name: "{{item.name}}"
+        state: removed
+      with_items:
+        - {name: docker}
+        - {name: docker-common}
+        - {name: docker-client}
+        - {name: kubernetes-cni}
+        - {name: kubelet}
+        - {name: kubeadm}
+        - {name: kubectl}
+            
+    - name: Deleting old files
+      file:
+        path: "{{item.path}}"   
+        state: absent
+      with_items:
+        - {path: /root/.kube}  
+        - {path: /etc/kubernetes}
+        - {path: /etc/systemd/system/kubelet.service.d}  
+        - {path: /etc/systemd/system/kubelet.service}  
+        - {path: /usr/bin/kubeadm} 
+        - {path: /usr/bin/kubectl} 
+        - {path: /usr/bin/kubefed} 
+        - {path: /usr/bin/kubelet}   
+        - {path: /etc/cni}     
+        - {path: /opt/cni}    
+        - {path: /var/lib/etcd} 
+        - {path: /var/etcd}
+
+    - name: Setting hostname
+      shell: hostnamectl set-hostname master01
+        
+    - name: Copying files to remote host
+      copy:  
+        src: "{{item.src}}"
+        dest: /home/ 
+      with_items:
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/k8s}     
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/docker}   
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/completion}  
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/k8s_yml}  
+      
+    - name: Installing docker
+      shell: rpm -ivh /home/docker/*rpm --force --nodeps 
+
+    - name: Configing 
+      template:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+      with_items:
+        - {src: daemon.json,dest: /etc/docker/}
+        - {src: kubeadm-config.yaml ,dest: /root/ }
+        - {src: cert-main-master.sh ,dest: /root/ }
+        - {src: cert-other-master.sh ,dest: /root/ }
+      
+    - name: Installing k8s
+      shell: |
+        rpm -ivh /home/k8s/* --force --nodeps 
+
+    - name: Getting network 
+      shell: |
+        ls /etc/sysconfig/network-scripts |head -1 |awk -F '-' '{print $2}'
+      register: network    
+
+    - name: Configing ip_forward
+      shell:  echo "1" > /proc/sys/net/ipv4/ip_forward
+
+    - name: Restarting docker
+      systemd:
+        name: docker
+        state: restarted
+        enabled: yes
+                   
+    - name: Uping vip && Initialing k8s
+      shell: |
+        ifconfig {{network.stdout}}:2 {{keepalived_vip}} netmask 255.255.255.0 down
+        ifconfig {{network.stdout}}:2 {{keepalived_vip}} netmask 255.255.255.0 up
+        kubeadm init --config=/root/kubeadm-config.yaml
+
+
+        
+    - name: Configing bash_profile
+      lineinfile:
+        path: ~/.bash_profile
+        line: 'export KUBECONFIG=/etc/kubernetes/admin.conf'
+        create: yes
+
+    - name: Configing bash_profile
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{item.dest}}"
+      with_items:
+        - {dest: /etc/ansible_basic/roles/k8s_client/templates}
+        - {dest: /etc/ansible_basic/roles/k8s_master02/templates}
+        - {dest: /etc/ansible_basic/roles/k8s_master03/templates}
+        - {dest: /etc/ansible_basic/roles/k8s_master_recover/templates}
+        
+    - name: Sourcing bash_profile
+      shell: |
+        source ~/.bash_profile
+        sleep 30
+                
+    - name: Creating flannel
+      shell: 
+         kubectl create -f kube-flannel.yml --kubeconfig /etc/kubernetes/admin.conf
+      args:
+        chdir: /home/k8s_yml   
+        
+
+                                  
+
+        

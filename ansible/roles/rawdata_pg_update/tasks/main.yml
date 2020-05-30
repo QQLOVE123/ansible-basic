@@ -1,0 +1,50 @@
+---        
+    - name: Creating directory 
+      file:
+        path: /opt/deploy/rpm/rawdata
+        state: directory
+        
+    - name: Copying sql to remote host
+      copy:
+        dest: "{{item.dest}}"
+        src: "{{item.src}}"
+      with_items:
+        - {src: "/etc/ansible/roles/rawdata_pg_update/files/{{kafka2hive_sql}}",dest: /opt/deploy/rpm/rawdata}
+        - {src: "/etc/ansible/roles/rawdata_pg_update/files/{{t_job_params_sql}}",dest: /opt/deploy/rpm/rawdata}
+        - {src: "/etc/ansible/roles/rawdata_pg_update/files/{{dsm_all_sql}}",dest: /opt/deploy/rpm/rawdata} 
+        - {src: "/etc/ansible/roles/rawdata_pg_update/files/{{dsm_init_sql}}",dest: /opt/deploy/rpm/rawdata} 
+
+    - name: Initialing bdp_sys
+      become: yes
+      become_user: bdp_sys
+      shell: psql bdp_sys -c "{{item.sql}}" 
+      with_items:
+        - {sql: "\\i /opt/deploy/rpm/rawdata/{{kafka2hive_sql}};"}  
+        - {sql: "\\i /opt/deploy/rpm/rawdata/{{t_job_params_sql}};"}   
+        - {sql: "update kafka2hive.t_job_param set param_value='{{oozie_url}}' where param_key='oozie_url';"}         
+      
+    - name: Initializing dsm
+      become: yes
+      become_user: dsm
+      shell: psql dsm -c "{{item.sql}}" 
+      with_items:   
+        - {sql: "\\i /opt/deploy/rpm/rawdata/{{dsm_all_sql}};"}   
+        - {sql: "\\i /opt/deploy/rpm/rawdata/{{dsm_init_sql}};"}   
+
+
+      
+      
+      
+        
+      
+        
+
+        
+        
+      
+
+
+    
+  
+  
+   

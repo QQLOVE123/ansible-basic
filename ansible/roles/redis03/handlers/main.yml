@@ -1,0 +1,12 @@
+---
+    - name: Print check result  #打印检查结果 
+      fail: msg="服务器{{IP}}存在pg进程,判断已安装pg,如果需要重新安装,请在服务器{{IP}}上停止pg进程后重执行该脚本"
+      when: pg_exists.stdout != '0'
+    - name: Check pg HA
+      debug: msg="postgresql-10主从流复制HA部署未成功,请排查原因"
+      when: 
+        - result.stdout.find('0 rows') !=-1 
+    - name: Check pg HA
+      debug: msg="postgresql-10主从流复制HA部署成功"
+      when: 
+        - result.stdout.find('0 rows') ==-1  

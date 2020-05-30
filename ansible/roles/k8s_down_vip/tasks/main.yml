@@ -1,0 +1,10 @@
+---  
+    - name: Getting network 
+      shell: |
+        ls /etc/sysconfig/network-scripts |head -1 |awk -F '-' '{print $2}'
+      register: network   
+      
+    - name: Downing vip on master01
+      shell: |
+        ifconfig {{network.stdout}}:2 {{keepalived_vip}} netmask 255.255.255.0 down
+        

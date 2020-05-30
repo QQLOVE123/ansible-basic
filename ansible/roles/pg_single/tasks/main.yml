@@ -1,0 +1,99 @@
+---
+    - name: Creating remote directory
+      file:
+        path: /opt/deploy/postgres/
+        state: directory
+        
+    - name: Copying rpm packages to remote server
+      copy:
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        owner: root
+        group: root
+        mode: 0755
+      with_items:
+        - {src: '/etc/ansible/roles/pg_single/files',dest: /opt/deploy/postgres/}
+        
+    - name: Getting pg-10 process
+      shell: ps -ef | grep postmaster |grep -v grep |wc -l
+      register: result
+      
+    - name: Stopping installed pg-10  
+      systemd:
+        name: postgresql-10.service
+        state: stopped
+      ignore_errors: yes  
+      when: result.stdout != '0'
+
+    - name: Pg stopped unsuccessfully 
+      shell: ps -ef |grep postmaster |grep -v grep | wc -l
+      register: result
+      failed_when: result.stdout != '0'
+
+    - name: Pg stopped successfully 
+      debug: msg='pg进程停止成功'
+
+    - name: Uninstalling installed pg-10 
+      shell: rpm -qa |grep postgres |grep -v devel |wc -l
+      register: result
+        
+    - name: Uninstalling installed pg-10 
+      shell: |            
+        rpm -qa |grep postgres |grep -v devel |awk '{print $0}'|xargs rpm -e --nodeps
+      when: result.stdout != '0'
+ 
+    - name: Pg uninstalled unsuccessfully 
+      shell: rpm -qa |grep postgres |grep -v devel | wc -l
+      register: result
+      failed_when: result.stdout != '0'
+
+    - name: Pg uninstalled successfully
+      debug: msg='pg卸载成功rmp包'
+      
+    - name: Removing pg-10 datafile   
+      file:
+        path: /var/lib/pgsql
+        state: absent
+      
+    - name: Installing pg-10 
+      shell: rpm -ivh /opt/deploy/postgres/files/*rpm --nodeps --force
+
+    - name: Initialing pg-10     
+      shell: /usr/pgsql-10/bin/postgresql-10-setup initdb
+
+    - name: Copying pg-10 config file  
+      template:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+        owner: postgres
+        group: postgres
+      with_items:
+        - {src: pg_hba_master.conf,dest: /var/lib/pgsql/10/data/pg_hba.conf}
+        - {src: postgresql_master.conf,dest: /var/lib/pgsql/10/data/postgresql.conf}
+
+    - name: Starting pg-10  
+      systemd:
+        name: "{{item.name}}"
+        state: "{{item.state}}"
+        enabled: "{{item.enabled}}"
+      register: status
+      failed_when:
+        - status is failed
+        - item.state != "started"
+      with_items:
+        - {name: postgresql-10.service, state: started,enabled: yes}
+
+    - name: Pg started unsuccessfully 
+      shell: ps -ef |grep postmaster |grep -v grep | wc -l
+      register: result
+      failed_when: result.stdout == '0'
+
+    - name: Pg stopped successfully 
+      debug: msg='pg进程启动成功'        
+        
+    - name: Altering pg-10 password 
+      become: yes
+      become_user: postgres
+      shell: psql -c "ALTER USER postgres WITH PASSWORD '"{{postgres_pwd}}"';"
+
+

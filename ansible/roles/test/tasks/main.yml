@@ -1,0 +1,9 @@
+---
+#    - name: Creating new token-ca-cert-hash
+#      shell: kubeadm token create --print-join-command
+#      register: token
+      
+    - name: Printing
+      debug: msg='{{inventory_hostname}}'
+      when: inventory_hostname=='jdk01'
+        

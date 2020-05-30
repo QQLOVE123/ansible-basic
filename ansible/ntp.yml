@@ -1,0 +1,19 @@
+######################################
+#描述：部署ntp
+#作者：wangzhenqii@cecdat.con
+#时间：2020年04月16日
+#版权：中电（福建）健康医疗大数据运营服务有限公司
+######################################
+---
+    
+- hosts: ntp_server 
+  roles:
+    - {role: ntp_server}
+  tags:
+    - ntp_server   
+    
+- hosts: ntp_agent
+  roles:
+    - {role: ntp_agent}
+  tags:
+    - ntp_agent 

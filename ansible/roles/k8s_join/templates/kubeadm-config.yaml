@@ -1,0 +1,18 @@
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: ClusterConfiguration
+kubernetesVersion: v1.18.0
+imageRepository: {{harbor}}:5000/k8s
+apiServer:
+  certSANs:
+  - master01
+  - master02
+  - master03
+  - {{k8s_master01}}
+  - {{k8s_master02}}
+  - {{k8s_master03}}
+  - work01
+  - {{k8s_work01}}
+  - {{keepalived_vip}}
+controlPlaneEndpoint: "{{keepalived_vip}}:6443"
+networking:
+  podSubnet: "10.244.0.0/16"

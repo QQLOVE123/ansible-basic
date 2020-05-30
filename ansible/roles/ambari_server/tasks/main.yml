@@ -1,0 +1,180 @@
+---  
+#ambari_server 
+    - name: Creating directory /home/rpm/ambari/
+      file:  
+        path: /home/rpm/ambari
+        state: directory
+        
+    - name: Copying rpm to remote host
+      copy:  
+        src: /etc/ansible/roles/ambari_server/files/rpm
+        dest: /home/rpm/ambari       
+      
+    - name: Installing rpm
+      shell: rpm -ivh /home/rpm/ambari/rpm/* --force --nodeps 
+      
+    - name: Setting ulimit
+      shell: ulimit -n 100001
+    
+    - name: Setting limits
+      lineinfile:
+        dest: /etc/security/limits.conf
+        line: "{{item.word}}"
+        create: yes
+      with_items:
+        - {word: '* soft nproc 100001'}
+        - {word: '* hard nproc 100001'}
+        - {word: '* soft nofile 100001'}
+        - {word: '* hard nofile 100001'}
+        
+        
+    - name: Setting sysctl
+      lineinfile:
+        dest: /etc/sysctl.conf
+        line: "{{item.word}}"
+        create: yes
+      with_items:
+        - {word: 'fs.file-max=100001'}
+        
+    - name: Removing ambari-server
+      yum:
+        name: ambari-server
+        state: absent
+        
+    - name: Removing ambari-agent
+      yum:
+        name: ambari-agent
+        state: absent   
+        
+    - name: Installing ambari-server
+      yum:
+        name: ambari-server
+        state: latest
+        
+    - name: Installing ambari-agent
+      yum:
+        name: ambari-agent
+        state: latest   
+
+    - name: Restarting ambari-agent
+      shell: ambari-agent restart       
+        
+    - name: Enabling ambari-agent
+      systemd:
+        name: ambari-agent 
+        enabled: yes
+
+    - name: Copying mysql.jar to remote host
+      copy:
+        src: /etc/ansible/roles/ambari_server/files/mysql-connector-java-5.1.44-bin.jar
+        dest: /usr/share/java/
+
+    - name: Configing ambari.properties
+      lineinfile:
+        dest: /etc/ambari-server/conf/ambari.properties
+        line: 'server.jdbc.driver.path=/usr/share/java/mysql-connector-java-5.1.44-bin.jar'  
+        create: yes
+
+    - name: Setting ambari-server 
+      expect:
+        command: ambari-server setup
+        responses:
+          (?i)(OK to continue):
+            - "y"
+          (?i)(Customize user account for ambari-server daemon):
+            - "y"
+          (?i)(Ambari-server daemon is configured to run under user):
+            - "y"
+          (?i)(Enter user account for ambari-server daemon):
+            - "ambari"
+          (?i)(Do you want to change Oracle JDK):
+            - "y"
+          (?i)(Custom JDK):
+            - "2"
+          (?i)(Path to JAVA_HOME):
+            - "/usr/local/jdk1.8.0_191" 
+          (?i)(Enable Ambari Server to download and install GPL Licensed LZO packages): 
+            - "n"    
+          (?i)(Enter advanced database configuration):
+            - "y"
+          (?i)(Choose one of the following options):
+            - 3
+          (?i)(Hostname): 
+            - ""  
+          (?i)(Port): 
+            - ""    
+          (?i)(Database name):
+            - ""
+          (?i)(Username):
+            - "" 
+          (?i)(Enter Database Password): 
+            - ""              
+          (?i)(Proceed with configuring remote database connection properties):
+            - "y"        
+
+    - name: Importing sql
+      shell: mysql -uroot -p{{mysql_root_pwd|quote}} ambari <   /var/lib/ambari-server/resources/Ambari-DDL-MySQL-CREATE.sql
+            
+    - name: Configing cert-verification.cfg
+      replace:
+        dest: /etc/python/cert-verification.cfg
+        regexp: 'verify=platform_default'
+        replace: 'verify=disable'     
+
+    - name: Configing ambari-agent.ini 1
+      replace:
+        dest: /etc/ambari-agent/conf/ambari-agent.ini
+        regexp: 'force_https_protocol=PROTOCOL_TLSv1_2'
+        replace: '[security]'     
+
+    - name: Configing ambari-agent.ini 2
+      replace:
+        dest: /etc/ambari-agent/conf/ambari-agent.ini
+        regexp: '${node1_ip}'
+        replace: 'localhost'     
+        
+    - name: Configing /etc/rc.local 
+      lineinfile:
+        dest: /etc/rc.local
+        line: 'ambari-agent restart' 
+        create: yes    
+
+    - name: Setup ambari-server 
+      shell: ambari-server setup --jdbc-db=mysql --jdbc-driver=/usr/share/java/mysql-connector-java-5.1.44-bin.jar          
+
+    - name: Installing libstdc
+      yum: 
+        name: nss-softokn-freebl
+        state: latest    
+        
+    - name: Installing libstdc
+      yum: 
+        name: libstdc++
+        state: latest
+      
+    - name: Installing libstdc
+      yum: 
+        name: libstdc++.so.6
+        state: present
+#after ambari        
+    - name: Unarchiving files
+      unarchive:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+        owner: ambari
+        group: root
+      with_items:
+        - {src: /etc/ansible/roles/ambari_server/files/IMPALA.zip,dest: /var/lib/ambari-server/resources/stacks/HDP/2.6/services/}
+        - {src: /etc/ansible/roles/ambari_server/files/KUDU.zip,dest: /var/lib/ambari-server/resources/stacks/HDP/2.6/services/}
+         
+    - name: Starting ambari-server
+      shell: ambari-server restart         
+        
+    - name: Enabling ambari-server
+      systemd:
+        name: ambari-server
+        enabled: yes 
+      
+              
+
+        

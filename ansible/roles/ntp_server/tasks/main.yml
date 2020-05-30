@@ -1,0 +1,21 @@
+---
+    - name: Stopping ntpd
+      systemd: 
+        name: ntpd
+        state: stopped
+      
+    - name: Copying configs to remote hosts
+      template:
+        src: ntp.conf
+        dest: /etc/ntp.conf
+        
+    - name: Restarting ntpd
+      systemd: 
+        name: ntpd
+        state: restarted
+        enabled: yes
+      
+    - name: Asyncing ntpd
+      shell: |
+        "ntpdate -u {{ntp_server}}"
+        ntpq -p

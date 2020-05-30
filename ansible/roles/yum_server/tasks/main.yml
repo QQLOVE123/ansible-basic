@@ -1,0 +1,23 @@
+---           
+    - name: Copying yumrepo.conf to /etc/nginx/conf.d
+      template:
+        src: yumrepo.conf
+        dest: /etc/nginx/conf.d/   
+        
+    - name: Creating repo,it will take pretty long time
+      shell: createrepo ./
+      args:
+        chdir: /etc/nginx/www/html      
+      
+    - name: Reloading nginx
+      systemd:
+        name: nginx
+        state: restarted 
+      
+    - name: Yum created unsuccessfully
+      shell: ss -ntl |grep 8022 |wc -l
+      register: result
+      failed_when: result.stdout == '0'
+      
+    - name: Mysql started successfully
+      debug: msg="服务器{{IP}}yum源部署成功"

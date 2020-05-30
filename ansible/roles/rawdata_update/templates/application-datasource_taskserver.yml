@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    driverClassName: org.postgresql.Driver
+    url: jdbc:postgresql://postgres.cecdat:5432/bdp_sys?currentSchema=kafka2hive&useSSL=false&serverTimezone=GMT%2B8&autoReconnect=true
+    username: bdp_sys
+    password: {{bdp_sys_pwd}}
+    filters: stat,wall
+    initialSize: 10
+    minIdle: 10
+    maxActive: 150
+    minEvictableIdleTimeMillis: 300000
+    timeBetweenEvictionRunsMillis: 60000
+    maxWait: 60000
+    testWhileIdle: true
+    testOnBorrow: false
+    testOnReturn: false
+    poolPreparedStatements: true
+    maxPoolPreparedStatementPerConnectionSize: 20
+    connectionProperties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000

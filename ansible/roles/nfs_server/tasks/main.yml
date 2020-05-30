@@ -1,0 +1,57 @@
+---     
+    - name: Creating group
+      group:
+        name: dc_sys
+        state: present
+      
+    - name: Creating user
+      user:
+        name: dc_sys
+        group: dc_sys
+        state: present
+        
+    - name: Creating directory /updpkg 
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+        owner: dc_sys
+        group: dc_sys
+      with_items:
+        - {path: /updpkg,state: directory}
+
+    - name: Creating directory /opt/deploy/rpm/nfs 
+      file: 
+        path: /opt/deploy/rpm/nfs 
+        state: directory      
+        
+    - name: Copying nfs rpm to remote /opt/deploy/rpm/nfs
+      copy: 
+        src: /etc/ansible/roles/nfs_server/files/nfs-rpm
+        dest: /opt/deploy/rpm/nfs
+        
+    - name: Installing nfs rpm
+      shell: rpm -ivh  /opt/deploy/rpm/nfs/nfs-rpm/* --nodeps --force   
+        
+    - name: Removing updpkg from /etc/exports
+      lineinfile:
+        path: /etc/exports
+        regexp: "updpkg"
+        state: absent
+      
+    - name: Starting nfs and rpcbind
+      systemd:
+        name: "{{item.name}}"
+        state: "{{item.state}}"
+        enabled: yes
+      with_items:
+        - {name: rpcbind.service, state: started}
+        - {name: nfs.service, state: started}
+        
+    - name: Adding updpkg to /etc/exports
+      lineinfile:
+        path: /etc/exports
+        line: "/updpkg {{dcc02}}(rw,sync,subtree_check,no_root_squash)"
+        create: yes
+
+    - name: Applying /etc/exports
+      shell: exportfs -rv

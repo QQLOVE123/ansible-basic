@@ -1,0 +1,21 @@
+######################################
+#描述：部署keepalived主从
+#作者：wangzhenqi@cecdat.com
+#时间：2020年04月16日
+#版权：中电（福建）健康医疗大数据运营服务有限公司
+######################################
+
+---
+- hosts: keepalived_slave
+  roles:
+    - {role: keepalived_slave}
+  tags:
+    - keepalived_slave
+  
+- hosts: keepalived_master 
+  roles:
+    - {role: keepalived_master}
+  tags:
+    - keepalived_master
+  
+

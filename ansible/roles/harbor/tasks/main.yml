@@ -1,0 +1,134 @@
+---  
+    - name: Creating directory 
+      file:
+        path: /home/harbor
+        state: directory
+      
+    - name: Getting docker rpm
+      shell: rpm -qa|grep docker | wc -l
+      register: result
+                  
+    - name: Stopping docker
+      systemd:
+        name: docker
+        state: stopped
+      when: result.stdout !='0'
+        
+    - name: Uninstalling 
+      yum:
+        name: "{{item.name}}"
+        state: removed
+      with_items:
+        - {name: docker}
+        - {name: docker-common}
+        - {name: docker-client}
+        
+    - name: Copying files to remote host
+      copy:  
+        src: "{{item.src}}"
+        dest: /home/ 
+      with_items:   
+        - {src: /etc/ansible_basic/roles/k8s_master01/files/docker}   
+      
+    - name: Installing docker
+      shell: rpm -ivh /home/docker/*rpm --force --nodeps 
+
+    - name: Configing daemon.json
+      template:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+      with_items:
+        - {src: daemon.json,dest: /etc/docker/}
+        
+    - name: Restarting docker
+      systemd:
+        name: docker
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+
+    - name: Copying docker-compose to remote 
+      copy:
+        src: /etc/ansible_basic/roles/harbor/files/docker-compose
+        dest: /usr/local/bin
+        mode: 0755       
+        
+    - name: Unarchiving harbor zip to remote 
+      unarchive:
+        src: /etc/ansible_basic/roles/harbor/files/harbor-offline-installer-v1.10.1.tgz
+        dest: /home/harbor
+        mode: 0755  
+        
+    - name: Configing harbor.yml 
+      template:
+        src: harbor.yml
+        dest: /home/harbor/harbor
+        
+    - name: Installing harbor
+      shell : sh install.sh
+      args:
+        chdir: /home/harbor/harbor   
+        
+    - name: Installing harbor
+      shell : sh install.sh
+      args:
+        chdir: /home/harbor/harbor  
+
+    - name: Loging harbor
+      expect:
+        command: "docker login {{harbor}}:5000"
+        responses:
+          (?i)(Username):
+            - "admin"
+          (?i)(Password):
+            - "Harbor12345"
+        
+    - name: Copying images to remote 
+      copy:
+        src: /etc/ansible_basic/roles/harbor/files/images
+        dest: /home/harbor/
+        
+    - name: Loading images 
+      shell: |
+        docker load -i kube-proxy.tar
+        docker load -i kube-scheduler.tar
+        docker load -i kube-controller-manager.tar
+        docker load -i kube-apiserver.tar
+        docker load -i flannel.tar
+        docker load -i pause.tar
+        docker load -i metrics-scraper.tar
+        docker load -i coredns.tar
+        docker load -i etcd.tar
+        docker load -i oracle-xe-11g.tar
+        docker load -i defaultbackend-amd64.tar
+        docker load -i nginx-ingress-controller.tar
+        docker load -i dashboard.tar
+        docker tag 192.168.1.56:5000/k8s/kube-proxy:v1.18.0 {{harbor}}:5000/k8s/kube-proxy:v1.18.0             
+        docker tag 192.168.1.56:5000/k8s/kube-scheduler:v1.18.0 {{harbor}}:5000/k8s/kube-scheduler:v1.18.0          
+        docker tag 192.168.1.56:5000/k8s/kube-controller-manager:v1.18.0  {{harbor}}:5000/k8s/kube-controller-manager:v1.18.0          
+        docker tag 192.168.1.56:5000/k8s/kube-apiserver:v1.18.0  {{harbor}}:5000/k8s/kube-apiserver:v1.18.0            
+        docker tag 192.168.1.56:5000/k8s/flannel:v0.12.0-amd64  {{harbor}}:5000/k8s/flannel:v0.12.0-amd64     
+        docker tag 192.168.1.56:5000/k8s/pause:3.2 {{harbor}}:5000/k8s/pause:3.2                
+        docker tag 192.168.1.56:5000/k8s/metrics-scraper:v1.0.3  {{harbor}}:5000/k8s/metrics-scraper:v1.0.3           
+        docker tag 192.168.1.56:5000/k8s/coredns:1.6.7 {{harbor}}:5000/k8s/coredns:1.6.7              
+        docker tag 192.168.1.56:5000/k8s/etcd:3.4.3-0  {{harbor}}:5000/k8s/etcd:3.4.3-0            
+        docker tag 192.168.1.56:5000/basic/oracle-xe-11g:latest  {{harbor}}:5000/basic/oracle-xe-11g:latest              
+        docker tag 192.168.1.56:5000/k8s/defaultbackend-amd64:1.5  {{harbor}}:5000/k8s/defaultbackend-amd64:1.5               
+        docker tag 192.168.1.56:5000/k8s/nginx-ingress-controller:0.20.0 {{harbor}}:5000/k8s/nginx-ingress-controller:0.20.0 
+        docker tag 192.168.1.56:5000/k8s/dashboard:v2.0.0-rc6  {{harbor}}:5000/k8s/dashboard:v2.0.0-rc6 
+        docker push {{harbor}}:5000/k8s/kube-proxy:v1.18.0             
+        docker push {{harbor}}:5000/k8s/kube-scheduler:v1.18.0           
+        docker push {{harbor}}:5000/k8s/kube-controller-manager:v1.18.0           
+        docker push {{harbor}}:5000/k8s/kube-apiserver:v1.18.0             
+        docker push {{harbor}}:5000/k8s/flannel:v0.12.0-amd64       
+        docker push {{harbor}}:5000/k8s/pause:3.2                 
+        docker push {{harbor}}:5000/k8s/metrics-scraper:v1.0.3             
+        docker push {{harbor}}:5000/k8s/coredns:1.6.7               
+        docker push {{harbor}}:5000/k8s/etcd:3.4.3-0              
+        docker push {{harbor}}:5000/basic/oracle-xe-11g:latest               
+        docker push {{harbor}}:5000/k8s/defaultbackend-amd64:1.5                 
+        docker push {{harbor}}:5000/k8s/nginx-ingress-controller:0.20.0 
+        docker push {{harbor}}:5000/k8s/dashboard:v2.0.0-rc6          
+      
+      args:
+        chdir: /home/harbor/images

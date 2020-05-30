@@ -1,0 +1,116 @@
+---      
+    - name: Dropping database 
+      mysql_db:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: "{{item.name}}"
+        state: absent
+      with_items: 
+        - {name: ambari}
+        - {name: hue}
+        - {name: hive}
+        - {name: oozie}
+
+    - name: Dropping user 
+      mysql_user:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: "{{item.name}}"
+        state: absent
+      with_items: 
+        - {name: ambari}
+        - {name: hue}
+        - {name: hive}
+        - {name: oozie}
+        
+    - name: Creating database ambari
+      mysql_db:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: ambari
+        encoding: utf8
+        state: present
+  
+    - name: Creating database hue
+      mysql_db:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: hue
+        encoding: utf8
+        state: present
+        
+    - name: Creating database hive
+      mysql_db:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: hive
+        encoding: utf8
+        state: present
+        
+    - name: Creating database oozie
+      mysql_db:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: oozie
+        encoding: utf8
+        state: present
+        
+    - name: Creating user ambari
+      mysql_user:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: ambari
+        password: bigdata
+        host: "{{item.host}}"
+        priv: 'ambari.*:ALL'
+        state: present
+      with_items:
+        - {host: localhost}
+        - {host: bdpnode01}
+        - {host: bdpnode02}
+        - {host: bdpnode03}
+
+    - name: Creating user hue
+      mysql_user:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: hue
+        password: hue
+        host: "{{item.host}}"
+        priv: '*.*:ALL'
+        state: present
+      with_items:
+        - {host: localhost}
+        - {host: bdpnode01}
+        - {host: bdpnode02}
+        - {host: bdpnode03}
+
+    - name: Creating user hive
+      mysql_user:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: hive
+        password: hive
+        host: "{{item.host}}"
+        priv: '*.*:ALL'
+        state: present
+      with_items:
+        - {host: localhost}
+        - {host: bdpnode01}
+        - {host: bdpnode02}
+        - {host: bdpnode03}
+        
+    - name: Creating user oozie
+      mysql_user:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: oozie
+        password: oozie
+        host: "{{item.host}}"
+        priv: '*.*:ALL'
+        state: present
+      with_items:
+        - {host: localhost}
+        - {host: bdpnode01}
+        - {host: bdpnode02}
+        - {host: bdpnode03}

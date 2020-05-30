@@ -1,0 +1,18 @@
+#目标服务器IP
+IP: "{{ansible_default_ipv4['address']}}"
+keepalived_vip: 192.168.6.172
+keepalived_app: nginx
+keepalived_master_conf: keepalived_master_k8s.conf
+keepalived_slave_conf: keepalived_slave_k8s.conf
+postgres_pwd: Admin@12345
+mysql_root_pwd: Admin@12345
+mysql_readonly_pwd: Readonly@12345
+keepalived_master: 192.168.6.165
+keepalived_slave: 192.168.6.166
+bdpnode01: 192.168.6.166
+k8s_master01: 192.168.6.162
+k8s_master02: 192.168.6.163
+k8s_master03: 192.168.6.164
+k8s_work01: 192.168.6.165
+k8s_work02: 192.168.6.166
+harbor: 192.168.1.57

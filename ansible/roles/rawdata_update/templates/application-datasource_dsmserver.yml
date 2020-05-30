@@ -1,0 +1,67 @@
+spring:
+  autoconfigure:
+    exclude: com.alibaba.druid.spring.boot.autoconfigure.DruidDataSourceAutoConfigure
+  jpa:
+    show-sql: true
+  datasource:
+    druid:
+      stat-view-servlet:
+        enabled: true
+        url-pattern: /druid/*
+        login-username: admin
+        login-password: admin
+    dynamic:
+      primary: dsmDataSource
+      druid:
+        # 下面为连接池的补充设置，应用到上面所有数据源中
+        # 初始化大小，最小，最大
+        initial-size: 3
+        max-active: 10
+        min-idle: 3
+        # 配置获取连接等待超时的时间
+        max-wait: 60000
+        # 打开PSCache，并且指定每个连接上PSCache的大小
+        pool-prepared-statements: true
+        max-pool-prepared-statement-per-connection-size: 20
+        # 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒
+        time-between-eviction-runs-millis: 60000
+        # 配置一个连接在池中最小生存的时间，单位是毫秒
+        min-evictable-idle-time-millis: 300000
+        validation-query: SELECT 1
+        test-while-idle: true
+        test-on-borrow: false
+        test-on-return: false
+        filter:
+          stat:
+            log-slow-sql: true
+            slow-sql-millis: 5000
+            merge-sql: true
+          wall:
+            config:
+              multi-statement-allow: true
+      datasource:
+        # 元数据数据库
+        dsmDataSource:
+          type:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://postgres.cecdat:5432/dsm?currentSchema=public&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true
+          username: dsm
+          password: {{dsm_pwd}}
+        # 订阅程序数据库
+        dpDataSource2:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://postgres.cecdat:5432/dbp_sys?currentSchema=kafka2hive&useSSL=false&serverTimezone=GMT%2B8&autoReconnect=true
+          username: cecdf
+          password: cecdf
+        #hive metadata数据库
+        dhDataSource:
+          driver-class-name: com.mysql.jdbc.Driver
+          url: jdbc:mysql://mysql.bdp:3306/hive?characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8&autoReconnect=true
+          username: hive
+          password: hive
+        #治理平台数据库
+        dvDataSource:
+          driver-class-name: com.mysql.jdbc.Driver
+          url: jdbc:mysql://mysql.govern:3306/annotation_library?characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8&autoReconnect=true
+          username: root
+          password: {{mysql_root_pwd}}

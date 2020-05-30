@@ -1,0 +1,147 @@
+---  
+    - name: Applying ipvsadm
+      shell: ipvsadm
+
+    - name: Creating remote directory
+      file:
+        path: /opt/deploy/keepalived/
+        state: directory
+        
+    - name: Copying rpm packages to remote server
+      copy:
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        owner: root
+        group: root
+        mode: 0755
+      with_items:
+        - {src: '/etc/ansible_basic/roles/keepalived_master/files',dest: /opt/deploy/keepalived/}
+        
+    - name: Getting keepalived process
+      shell: ps -ef |grep keepalived |grep -v grep | wc -l
+      register: result
+      
+    - name: Stoping keepalived
+      systemd:
+        name: keepalived.service
+        state: stopped
+        enabled: no    
+      ignore_errors: yes        
+      when: result.stdout !='0'
+      
+    - name: Getting network #获取network 
+      shell: |            
+        ls /etc/sysconfig/network-scripts |head -1 |awk -F '-' '{print $2}'
+      register: network
+
+    - name: Getting vip 
+      shell: ip a |grep "{{keepalived_vip}}" | wc -l
+      register: result        
+        
+    - name: Deleting vip from ip a
+      shell: "ip addr del {{keepalived_vip}} dev {{network}}"  
+      when: result.stdout !='0'     
+      
+    - name: Checking VIP occupied #确认虚拟ip是否生效
+      shell: |
+         ping "{{keepalived_vip}}" -w2 |tail -n 2 |head -1 |awk '{print $4}'
+      register: result
+      
+    - name: VIP occupied 
+      debug: msg="虚拟ip:{{keepalived_vip}}已生效"
+      when: result.stdout != '0' 
+      
+    - name: Uninstalling keepalived #卸载原keepalived残留文件 
+      shell: |            
+        cd /usr/local/keepalived-2.0.11 && make uninstall 
+      args:
+        removes: /usr/local/keepalived-2.0.11
+      ignore_errors: yes                
+      
+    - name: Removing file  #开始清理旧版文件
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+      with_items:
+        - {path: /usr/bin/keepalived,state: absent}
+        - {path: /usr/local/sbin/keepalived,state: absent}
+        - {path: /usr/local/etc/rc.d/init.d/keepalived,state: absent}
+        - {path: /usr/local/etc/sysconfig/keepalived,state: absent}
+        - {path: /usr/local/etc/keepalived,state: absent}
+        - {path: /usr/local/bin/genhash,state: absent}
+        - {path: /usr/local/keepalived,state: absent}
+        - {path: /etc/keepalived,state: absent}
+        - {path: /etc/rc.d/init.d/keepalived,state: absent}
+        - {path: /usr/sbin/keepalived,state: absent}
+        - {path: /etc/sysconfig/keepalived,state: absent}
+        - {path: /etc/systemd/system/multi-user.target.wants/keepalived.service,state: absent}
+        - {path: /usr/local/keepalived-2.0.11,state: absent}
+        - {path: /etc/init.d/keepalived,state: absent}
+        - {path: /usr/lib/systemd/system/keepalived.service,state: absent}
+      
+    - name: Installing keepalived rpm 
+      shell: rpm -ivh /opt/deploy/keepalived/files/*rpm --nodeps --force
+      
+    - name: Unarchiving keepalived package #安装keepalived
+      unarchive:
+        src: /opt/deploy/keepalived/files/keepalived-2.0.11.tar.gz
+        dest: /usr/local/
+        creates: /usr/local/keepalived-2.0.11
+        remote_src: yes
+      
+    - name: Installing keepalived      
+      shell: |
+        cd /usr/local/keepalived-2.0.11/ && ./configure && make && make install
+        cp /usr/local/keepalived-2.0.11/keepalived/etc/init.d/keepalived /etc/init.d/keepalived
+      
+    - name: Creating directory  
+      file:
+        path: /etc/keepalived
+        state: directory
+      
+    - name: Copying file #复制文件
+      shell: |
+        cp /usr/local/etc/sysconfig/keepalived /etc/sysconfig/
+        cp /usr/local/sbin/keepalived /usr/bin/
+        cp /usr/local/sbin/keepalived /usr/sbin/           
+      
+    - name: Keepalived installed unsuccessfully  #检查是否已安装keepalived
+      shell: ls  /usr/local/sbin/keepalived |wc -l 
+      register: keepalived_exists
+      ignore_errors: yes
+      failed_when:  keepalived_exists.stdout == '0' 
+      
+    - name:  Keepalived installed successfully #打印检查结果 
+      debug: msg="服务器{{IP}}安装keepalived成功" 
+      
+    - name: Copying monitor_master.sh to master
+      template:
+        src: monitor_master.sh
+        dest: /etc/keepalived/monitor.sh
+        mode: 0644      
+      
+    - name: Copying keepalived_master.conf to master
+      template:
+        src: "{{keepalived_master_conf}}" 
+        dest: /etc/keepalived/keepalived.conf
+        mode: 0644       
+        
+    - name: Starting keepalived 
+      systemd:
+        name: keepalived.service
+        daemon_reload: yes
+        state: restarted
+        enabled: yes    
+      
+    - name: VIP on master 
+      shell: |
+         sleep 10
+         ip a| grep -E "{{keepalived_master}}|{{keepalived_vip}}" |wc -l
+      register: vip_occupied
+      failed_when: vip_occupied.stdout != '2'
+      
+    - name: VIP not occupied  #打印检查结果 
+      debug: msg="{{IP}}正常部署为HA主节点"    
+ 
+
+

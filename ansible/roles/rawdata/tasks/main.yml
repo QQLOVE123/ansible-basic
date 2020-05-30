@@ -1,0 +1,53 @@
+---    
+    - name: Creating group 
+      group:
+        name: "{{item.name}}"
+        state: present
+      with_items:
+        - {name: rawdata}
+        - {name: dsm}
+        
+    - name: Creating user 
+      user:
+        name: "{{item.name}}"
+        group: "{{item.name}}"
+        state: present
+      with_items:
+        - {name: rawdata}
+        - {name: dsm}  
+        
+    - name: Dropping rawdata locate directory
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+      with_items:
+        - {path: /app/rawdata/rawdata,state: absent}
+        - {path: /app/rawdata/taskserver,state: absent}
+        - {path: /app/dsm/dsmserver,state: absent}
+        
+    - name: Creating rawdata locate directory
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+        owner: "{{item.name}}"
+        group: "{{item.name}}"
+      with_items:
+        - {path: /app/rawdata/rawdata,state: directory,name: rawdata}
+        - {path: /app/rawdata/taskserver,state: directory,name: rawdata}
+        - {path: /app/dsm/dsmserver,state: directory,name: dsm}
+      
+      
+      
+        
+      
+        
+
+        
+        
+      
+
+
+    
+  
+  
+   

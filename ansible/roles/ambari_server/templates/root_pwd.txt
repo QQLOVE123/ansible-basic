@@ -1,0 +1,15 @@
+create database ambari default character set utf8;
+grant all on ambari.* to ambari@localhost identified by 'bigdata';
+grant all on ambari.* to ambari@'%' identified by 'bigdata';
+create database hue default character set utf8;
+create USER 'hue'@'%' identified by 'hue';
+grant all PRIVILEGES ON *.* TO 'hue'@'%';
+flush privileges;
+create database hive default character set utf8;
+create USER 'hive'@'%' identified by 'hive';
+grant all PRIVILEGES ON *.* TO 'hive'@'%';
+flush privileges;
+create database oozie default character set utf8;
+create USER 'oozie'@'%' identified by 'oozie';
+grant all PRIVILEGES ON *.* TO 'oozie'@'%';
+flush privileges;

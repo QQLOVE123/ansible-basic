@@ -1,0 +1,16 @@
+---  
+   
+  - name: Copying realserver.sh to remote
+    template:
+      src: realserver.sh 
+      dest: /etc/rc.d/init.d/  
+      mode: 0755    
+              
+  - name: Startting realserver.sh
+    shell: /etc/rc.d/init.d/realserver.sh start
+    
+  - name: 
+    lineinfile:
+      path: /etc/rc.d/rc.local
+      line: '/etc/rc.d/init.d/realserver.sh start'
+      create: yes

@@ -1,0 +1,263 @@
+---
+    - name: Creating remote directory
+      file:
+        path: /opt/deploy/redis/
+        state: directory
+        
+    - name: Copying rpm packages to remote server
+      copy:
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        owner: root
+        group: root
+        mode: 0755
+      with_items:
+        - {src: '/etc/ansible/roles/redis01/files',dest: /opt/deploy/redis/}
+#卸载redis
+    - name: Copying pexpect packages
+      copy: 
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        mode: 0755
+      with_items:
+        - {src: /etc/ansible/roles/redis01/files/pexpect-4.8.0.tar.gz,dest: /opt/deploy}
+        - {src: /etc/ansible/roles/redis01/files/ptyprocess-0.6.0.tar.gz,dest: /opt/deploy} 
+
+    - name: Copying pexpect-4.8.0.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/pexpect-4.8.0.tar.gz |wc -l
+      register: result
+      failed_when: result.stdout =='0'
+
+    - name: Copying ptyprocess-0.6.0.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/ptyprocess-0.6.0.tar.gz |wc -l
+      register: result
+      failed_when: result.stdout =='0'
+    
+    - name: Copying successfully
+      debug: msg='成功复制pexpect包到服务器{{IP}}'
+    
+    - name: Unarchiving pepect packages
+      unarchive: 
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+        creates: "{{item.creates}}"
+        remote_src: yes 
+      with_items:
+        - {src: '/opt/deploy/pexpect-4.8.0.tar.gz',dest: /opt/deploy,creates: '/opt/deploy/pexpect-4.8.0'}
+        - {src: '/opt/deploy/ptyprocess-0.6.0.tar.gz',dest: /opt/deploy,creates: '/opt/deploy/ptyprocess-0.6.0'} 
+
+    - name: Unarchiving ptyprocess-0.6.0.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/ptyprocess-0.6.0|wc -l
+      register: result
+      failed_when: result.stdout =='0'
+      
+    - name: Unarchiving pexpect-4.8.0.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/pexpect-4.8.0
+      register: result
+      failed_when: result.stdout =='0'
+    
+    - name: Unarchiving successfully
+      debug: msg='成功解压pexpect包到服务器{{IP}}'    
+      
+    - name: Installing pexpect 
+      shell: |
+        cd /opt/deploy/ptyprocess-0.6.0 
+        python setup.py install
+        cd /opt/deploy/pexpect-4.8.0
+        python setup.py install
+         
+
+    - name: Getting redis count
+      shell: ps -ef | grep redis |grep -v grep |grep -v 'redis.yml' |wc -l
+      register: result
+          
+    - name: Stopping redis-server 
+      shell: ps -ef | grep redis |grep -v grep |grep -v 'redis.yml' |awk '{print $2}'|xargs kill -9
+      ignore_errors: yes  
+      when: result.stdout != '0'
+      
+    - name: Removing redis left files 
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+      with_items:
+        - {path: /usr/local/bin/redis-benchmark,state: absent}
+        - {path: /usr/local/bin/redis-check-aof,state: absent}
+        - {path: /usr/local/bin/redis-check-rdb,state: absent}
+        - {path: /usr/local/bin/redis-cli,state: absent}
+        - {path: /usr/local/bin/redis-sentinel,state: absent}
+        - {path: /usr/local/bin/redis-server,state: absent}
+        - {path: /usr/local/redis-cluster,state: absent}
+        - {path: /usr/local/redis,state: absent}
+        - {path: /usr/local/ruby,state: absent}
+        - {path: /usr/local/bin/ruby,state: absent}
+        - {path: /usr/local/lib/ruby,state: absent}
+        - {path: /usr/local/rubygems,state: absent}
+        - {path: /usr/local/zlib,state: absent}
+        - {path: /usr/bin/openssl,state: absent}
+        - {path: /usr/lib64/openssl,state: absent}
+        - {path: /usr/local/openssl,state: absent}
+        - {path: /usr/share/man/man1/openssl.1ssl.gz,state: absent}
+      
+    - name: Removing configs from /etc/rc.local
+      lineinfile:
+        dest: /etc/rc.local
+        regexp: '^redis-server'
+        state: absent    
+#部署redis-server    
+    - name: Installing redis depending package
+      shell: rpm -ivh /opt/deploy/redis/files/*rpm --nodeps --force
+
+    - name: Creating needed directory  
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+      with_items:
+        - {path: /usr/local/redis-cluster/logs,state: directory}
+        - {path: /usr/local/redis-cluster/rdb,state: directory}
+        - {path: /usr/local/rubygems,state: directory}
+        - {path: /usr/local/zlib,state: directory}      
+        - {path: /usr/local/ruby,state: directory} 
+      
+    - name: Unarchiving redis package  
+      unarchive:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+        remote_src: yes
+      with_items:
+        - {src: /opt/deploy/redis/files/redis-5.0.0.tar.gz,dest: /usr/local}
+        - {src: /opt/deploy/redis/files/ruby-2.6.3.tar.gz,dest: /usr/local/ruby}
+        - {src: /opt/deploy/redis/files/zlib-1.2.11.tar.gz,dest: /usr/local/zlib}
+        - {src: /opt/deploy/redis/files/rubygems-3.0.4.tgz,dest: /usr/local/rubygems}
+        - {src: /opt/deploy/redis/files/openssl-1.0.2s.tar.gz,dest: /usr/local}
+        
+    - name: Installing ruby
+      shell: |
+        cd /usr/local/ruby/ruby-2.6.3/
+        ./configure
+        make && make install
+        
+    - name: Ruby installed unsuccessfully
+      shell: ruby -v 
+      register: result
+      failed_when: result.stdout.find("2.6.3p62") == -1
+ 
+    - name: Ruby installed successfully
+      debug: msg='{{IP}}服务器部署ruby成功'
+
+    - name: Starting install zlib
+      shell: | 
+        cd /usr/local/zlib/zlib-1.2.11/
+        ./configure --prefix=/usr/local/zlib
+        make
+        make install     
+ 
+    - name: Configuring installed zlib
+      shell: |
+        cd /usr/local/ruby/ruby-2.6.3/ext/zlib/
+        ruby extconf.rb --with-zlib-include=/usr/local/zlib/include/ --with-zlib-lib=/usr/local/zlib/lib
+        sed -i s/'$(top_srcdir)'/"..\/.."/ /usr/local/ruby/ruby-2.6.3/ext/zlib/Makefile
+        make
+        make install
+ 
+    - name: Installing rubygems
+      shell: |         
+        cd /usr/local/rubygems/rubygems-3.0.4
+        ruby setup.rb       
+ 
+    - name: Checking whether rubygems installed succefully
+      shell: gem -v
+      register: result
+      failed_when: result.stdout.find('3.0.4') == -1
+      
+    - name: Rubygems installed succefully
+      debug: msg="{{IP}}服务器部署rubygem成功"
+        
+    - name: Starting install openssl
+      shell: |         
+        cd /usr/local/openssl-1.0.2s
+        ./config -fPIC --prefix=/usr/local/openssl enable-shared
+        ./config -t
+        make && make install
+    - name: Installing openssl step1
+      shell: |          
+        cd /usr/local/ruby/ruby-2.6.3/ext/openssl/
+        ruby extconf.rb --with-openssl-include=/usr/local/openssl/include/ --with-openssl-lib=/usr/local/openssl/lib
+        sed -i s/'$(top_srcdir)'/"..\/.."/g Makefile
+        make && make install
+
+    - name: Checking whether openssl installed successfully
+      shell:  /usr/local/openssl/bin/openssl version
+      register: result
+      failed_when: result.stdout.find("1.0.2s") == -1
+      
+    - name: Openssl installed succefully
+      debug: msg="{{IP}}服务器部署openssl成功"        
+        
+    - name: Installing redis-server by make install       
+      shell: |
+        mv /usr/local/redis-5.0.0 /usr/local/redis
+        cd /usr/local/redis
+        make
+        make install
+
+    - name: Checking whether redis installed succefully
+      shell: ls -lrt /usr/local/bin/redis-cli | wc -l
+      register: result
+      ignore_errors: yes
+      failed_when: result.stdout =='0'
+      
+    - name: Redis installed succefully
+      debug: msg="{{IP}}服务器部署redis成功"
+      
+#部署redis-集群
+    - name: Creating directory 7000-7001
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+      with_items:
+        - {path: /usr/local/redis-cluster/7000,state: directory}
+        - {path: /usr/local/redis-cluster/7001,state: directory}
+ 
+    - name: Replacing directory redis_7000.conf-redis_7001.conf
+      template:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+      with_items:
+        - {src: redis_7000.conf,dest: /usr/local/redis-cluster/7000/redis.conf}
+        - {src: redis_7001.conf,dest: /usr/local/redis-cluster/7001/redis.conf}
+      
+    - name: Starting redis-server
+      shell: redis-server "{{item.path}}"
+      with_items:
+        - {path: /usr/local/redis-cluster/7000/redis.conf}
+        - {path: /usr/local/redis-cluster/7001/redis.conf}
+
+    - name: Checking whether redis-server started succefully
+      shell: ps aux |grep redis-server|grep -v grep |grep -v 6379 |wc -l
+      register: result 
+      failed_when: result.stdout != '2'
+
+    - name: Redis-server started succefully
+      debug: msg="{{IP}}服务器启动redis-server成功"
+      
+    - name: Adding configs to /etc/rc.local
+      lineinfile:
+        dest: /etc/rc.local
+        line: "{{item.path}}" 
+      with_items:
+        - {path: redis-server /usr/local/redis-cluster/7000/redis.conf}
+        - {path: redis-server /usr/local/redis-cluster/7001/redis.conf}
+        
+    - name: Installing ruby-redis plugins
+      shell: |  
+        cp -rp /opt/deploy/redis/files/redis-4.1.1.gem /usr/local/redis
+        gem install /usr/local/redis/redis-4.1.1.gem  
+
+    - name: Creating cluster
+      expect: 
+        command: redis-cli --cluster create "{{redis01}}":7000 "{{redis01}}":7001 "{{redis02}}":7002 "{{redis02}}":7003 "{{redis03}}":7004 "{{redis03}}":7005 --cluster-replicas 1   
+        responses:
+          (?i)(type 'yes' to accept): "yes"
+
+

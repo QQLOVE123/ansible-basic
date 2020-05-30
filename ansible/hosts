@@ -1,0 +1,42 @@
+[mysql]
+[ntp_server]
+[ntp_agent]
+[jdk]
+jdk01 ansible_ssh_port=22 ansible_ssh_host=192.168.6.162 ansible_ssh_user=root
+jdk02 ansible_ssh_port=22 ansible_ssh_host=192.168.6.163 ansible_ssh_user=root
+jdk03 ansible_ssh_port=22 ansible_ssh_host=192.168.6.164 ansible_ssh_user=root
+jdk04 ansible_ssh_port=22 ansible_ssh_host=192.168.6.165 ansible_ssh_user=root
+jdk05 ansible_ssh_port=22 ansible_ssh_host=192.168.6.166 ansible_ssh_user=root
+jdk06 ansible_ssh_port=22 ansible_ssh_host=192.168.1.56 ansible_ssh_user=root
+jdk07 ansible_ssh_port=22 ansible_ssh_host=192.168.1.57 ansible_ssh_user=root
+[yum_server]
+[yum_client]
+[nginx]
+nginx01 ansible_ssh_port=22 ansible_ssh_host=192.168.6.162 ansible_ssh_user=root
+nginx02 ansible_ssh_port=22 ansible_ssh_host=192.168.6.163 ansible_ssh_user=root
+nginx03 ansible_ssh_port=22 ansible_ssh_host=192.168.6.164 ansible_ssh_user=root
+nginx04 ansible_ssh_port=22 ansible_ssh_host=192.168.6.165 ansible_ssh_user=root
+nginx05 ansible_ssh_port=22 ansible_ssh_host=192.168.6.166 ansible_ssh_user=root
+nginx06 ansible_ssh_port=22 ansible_ssh_host=192.168.1.56 ansible_ssh_user=root
+nginx07 ansible_ssh_port=22 ansible_ssh_host=192.168.1.57 ansible_ssh_user=root
+[postgres_ha]
+[postgres_single]
+[keepalived_ha]
+keepalived_master ansible_ssh_port=22 ansible_ssh_host=192.168.6.165 ansible_ssh_user=root
+keepalived_slave ansible_ssh_port=22 ansible_ssh_host=192.168.6.166 ansible_ssh_user=root
+[redis]
+[ambari_server]
+[ambari_agent]
+[mariadb]
+[k8s_master]
+master01 ansible_ssh_port=22 ansible_ssh_host=192.168.6.162 ansible_ssh_user=root
+master02 ansible_ssh_port=22 ansible_ssh_host=192.168.6.163 ansible_ssh_user=root
+master03 ansible_ssh_port=22 ansible_ssh_host=192.168.6.164 ansible_ssh_user=root
+[k8s_work]
+work01 ansible_ssh_port=22 ansible_ssh_host=192.168.6.165 ansible_ssh_user=root
+work02 ansible_ssh_port=22 ansible_ssh_host=192.168.6.166 ansible_ssh_user=root
+[harbor]
+harbor01 ansible_ssh_port=22 ansible_ssh_host=192.168.1.57 ansible_ssh_user=root
+[k8s_client]
+client01 ansible_ssh_port=22 ansible_ssh_host=192.168.1.56 ansible_ssh_user=root
+client02 ansible_ssh_port=22 ansible_ssh_host=192.168.1.57 ansible_ssh_user=root

@@ -1,0 +1,29 @@
+---
+    - name: Creating /etc/yum.repos.d/bak
+      file: 
+        path: /etc/yum.repos.d/bak
+        state: directory
+      
+    - name: Getting repo files
+      find:  
+        paths: /etc/yum.repos.d
+        patterns: "*repo"
+      register: result
+      
+    - name: Baking yum.repos.d
+      shell: "mv {{item.path|quote}} /etc/yum.repos.d/bak"
+      with_items:
+       - "{{result.files}}"
+       
+    - name: Copying yum.repo to /etc/yum.repos.d
+      template:
+        src: yum.repo
+        dest: /etc/yum.repos.d/     
+      
+    - name: Applying yum.repo.d
+      shell: |
+        yum clean all 
+        yum makecache 
+      
+    - name: Printing result
+      debug: msg="服务器{{IP}}yum源配置完成"

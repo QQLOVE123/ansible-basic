@@ -1,0 +1,209 @@
+---  
+    - name: Stoping ambari process
+      shell: |
+        ambari-agent stop
+      args:
+        removes: /usr/sbin/ambari-agent
+        
+    - name: Stoping ambari process
+      shell: |
+        ambari-server stop
+      args:
+        removes: /usr/sbin/ambari-server
+        
+    - name: Removing rpm packages
+      shell: yum remove -y hadoop_2* hdp-select* ranger_2* zookeeper* bigtop*atlas-metadata* ambari* spark* slide* strom* hive*
+      
+    - name: Removing user
+      user:
+        name: "{{item.name}}"
+        state: absent
+        remove: yes  
+      with_items:
+        - {name: oozie}
+        - {name: hive}
+        - {name: ambari-qa}
+        - {name: flume }
+        - {name: hdfs }
+        - {name: knox }
+        - {name: storm }
+        - {name: mapred}
+        - {name: hbase }
+        - {name: tez }
+        - {name: zookeeper}
+        - {name: kafka }
+        - {name: falcon}
+        - {name: sqoop }
+        - {name: yarn }
+        - {name: hcat}
+        - {name: atlas}
+        - {name: spark}
+        - {name: ams}
+        - {name: zeppelin}
+    
+    - name: Removing files
+      file:
+        name: "{{item.name}}"
+        state: absent
+      with_items: 
+        - {name: /home/atlas}
+        - {name: /home/accumulo}
+        - {name: /home/hbase}
+        - {name: /home/hive}
+        - {name: /home/oozie}
+        - {name: /home/storm}
+        - {name: /home/yarn}
+        - {name: /home/ambari-qa}
+        - {name: /home/falcon}
+        - {name: /home/hcat}
+        - {name: /home/kafka}
+        - {name: /home/mahout}
+        - {name: /home/spark}
+        - {name: /home/tez}
+        - {name: /home/zookeeper}
+        - {name: /home/flume}
+        - {name: /home/hdfs}
+        - {name: /home/knox}
+        - {name: /home/mapred}
+        - {name: /home/sqoop}
+        - {name: /var/lib/ambari*}
+        - {name: /usr/lib/python2.6/site-packages/ambari_*}
+        - {name: /usr/lib/python2.6/site-packages/resource_management}
+        - {name: /usr/lib/ambari-*}
+        - {name: /etc/ambari-*}
+        - {name: /etc/hadoop}
+        - {name: /etc/hbase}
+        - {name: /etc/hive}
+        - {name: /etc/hive2 }
+        - {name: /etc/oozie}
+        - {name: /etc/sqoop }
+        - {name: /etc/zookeeper}
+        - {name: /etc/flume }
+        - {name: /etc/storm }
+        - {name: /etc/tez_hive2 }
+        - {name: /etc/spark2 }
+        - {name: /etc/phoenix }
+        - {name: /etc/pig }
+        - {name: /etc/hive-hcatalog}
+        - {name: /etc/tez }
+        - {name: /etc/falcon }
+        - {name: /etc/knox }
+        - {name: /etc/hive-webhcat}
+        - {name: /etc/kafka }
+        - {name: /etc/slider }
+        - {name: /etc/storm-slider-client}
+        - {name: /etc/spark }
+        - {name: /var/run/spark}
+        - {name: /var/run/hadoop}
+        - {name: /var/run/hbase}
+        - {name: /var/run/zookeeper}
+        - {name: /var/run/flume}
+        - {name: /var/run/storm}
+        - {name: /var/run/webhcat}
+        - {name: /var/run/hadoop-yarn}
+        - {name: /var/run/hadoop-mapreduce}
+        - {name: /var/run/kafka}
+        - {name: /var/run/hive	}
+        - {name: /var/run/oozie	}
+        - {name: /var/run/sqoop	}
+        - {name: /var/run/hive-hcatalog	}
+        - {name: /var/run/falcon	}
+        - {name: /var/run/hadoop-hdfs	}
+        - {name: /var/run/ambari-metrics-collector}
+        - {name: /var/run/ambari-metrics-monitor	}
+        - {name: /var/log/hadoop-hdfs	}
+        - {name: /var/log/hive-hcatalog}
+        - {name: /var/log/ambari-metrics-monitor}
+        - {name: /var/log/hadoop}
+        - {name: /var/log/hbase}
+        - {name: /var/log/flume}
+        - {name: /var/log/sqoop}
+        - {name: /var/log/ambari-server}
+        - {name: /var/log/ambari-agent}
+        - {name: /var/log/storm}
+        - {name: /var/log/hadoop-yarn}
+        - {name: /var/log/hadoop-mapreduce}
+        - {name: /var/log/knox }
+        - {name: /var/lib/slider}
+        - {name: /usr/lib/flume}
+        - {name: /usr/lib/storm}
+        - {name: /var/lib/hive }
+        - {name: /var/lib/oozie}
+        - {name: /var/lib/flume}
+        - {name: /var/lib/hadoop-yarn}
+        - {name: /var/lib/hadoop-mapreduce}
+        - {name: /var/lib/hadoop-hdfs}
+        - {name: /var/lib/zookeeper}
+        - {name: /var/lib/knox }
+        - {name: /var/log/hive }
+        - {name: /var/log/oozie}
+        - {name: /var/log/zookeeper}
+        - {name: /var/log/falcon}
+        - {name: /var/log/webhcat}
+        - {name: /var/log/spark}
+        - {name: /var/tmp/oozie}
+        - {name: /tmp/ambari-qa}
+        - {name: /tmp/hive }
+        - {name: /var/hadoop}
+        - {name: /hadoop/falcon}
+        - {name: /tmp/hadoop }
+        - {name: /tmp/hadoop-hdfs}
+        - {name: /usr/hdp}
+        - {name: /usr/hadoop}
+        - {name: /opt/hadoop}
+        - {name: /tmp/hadoop}
+        - {name: /var/hadoop}
+        - {name: /hadoop}
+        - {name: /usr/bin/worker-lanucher}
+        - {name: /usr/bin/zookeeper-client}
+        - {name: /usr/bin/zookeeper-server}
+        - {name: /usr/bin/zookeeper-server-cleanup}
+        - {name: /usr/bin/yarn }
+        - {name: /usr/bin/storm}
+        - {name: /usr/bin/storm-slider }
+        - {name: /usr/bin/worker-lanucher}
+        - {name: /usr/bin/storm}
+        - {name: /usr/bin/storm-slider }
+        - {name: /usr/bin/sqoop }
+        - {name: /usr/bin/sqoop-codegen }
+        - {name: /usr/bin/sqoop-create-hive-table }
+        - {name: /usr/bin/sqoop-eval }
+        - {name: /usr/bin/sqoop-export }
+        - {name: /usr/bin/sqoop-help }
+        - {name: /usr/bin/sqoop-import }
+        - {name: /usr/bin/sqoop-import-all-tables }
+        - {name: /usr/bin/sqoop-job }
+        - {name: /usr/bin/sqoop-list-databases }
+        - {name: /usr/bin/sqoop-list-tables }
+        - {name: /usr/bin/sqoop-merge }
+        - {name: /usr/bin/sqoop-metastore }
+        - {name: /usr/bin/sqoop-version }
+        - {name: /usr/bin/slider }
+        - {name: /usr/bin/ranger-admin-start }
+        - {name: /usr/bin/ranger-admin-stop }
+        - {name: /usr/bin/ranger-kms}
+        - {name: /usr/bin/ranger-usersync-start}
+        - {name: /usr/bin/ranger-usersync-stop}
+        - {name: /usr/bin/pig }
+        - {name: /usr/bin/phoenix-psql }
+        - {name: /usr/bin/phoenix-queryserver }
+        - {name: /usr/bin/phoenix-sqlline }
+        - {name: /usr/bin/phoenix-sqlline-thin }
+        - {name: /usr/bin/oozie }
+        - {name: /usr/bin/oozied.sh }
+        - {name: /usr/bin/mapred }
+        - {name: /usr/bin/mahout }
+        - {name: /usr/bin/kafka }
+        - {name: /usr/bin/hive }
+        - {name: /usr/bin/hiveserver2 }
+        - {name: /usr/bin/hbase}
+        - {name: /usr/bin/hcat }
+        - {name: /usr/bin/hdfs }
+        - {name: /usr/bin/hadoop }
+        - {name: /usr/bin/flume-ng }
+        - {name: /usr/bin/falcon }
+        - {name: /usr/bin/beeline}
+        - {name: /usr/bin/atlas-start }
+        - {name: /usr/bin/atlas-stop }
+        - {name: /usr/bin/accumulo}
+                

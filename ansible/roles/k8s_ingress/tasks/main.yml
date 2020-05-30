@@ -1,0 +1,54 @@
+---  
+    - name: Creating yml files
+      file:
+        path: /home/k8s_yml/ingress
+        state: directory
+        
+    - name: Copying mandatory.yaml to remote 
+      template:
+        src: mandatory.yaml 
+        dest: /home/k8s_yml/ingress
+            
+    - name: Deleting ingress
+      shell: |   
+         kubectl delete -f mandatory.yaml --kubeconfig /etc/kubernetes/admin.conf
+      args:
+        chdir: /home/k8s_yml/ingress
+      ignore_errors: yes
+
+    - name: Creating ingress
+      shell: |   
+         kubectl create -f mandatory.yaml --kubeconfig /etc/kubernetes/admin.conf
+      args:
+        chdir: /home/k8s_yml/ingress
+              
+    - name: Copying ymls to remote
+      copy:  
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+      with_items:
+        - {src: /etc/ansible_basic/roles/k8s_ingress/files/dashboard,dest: /home/k8s_yml}
+
+    - name: Deleting dashboard
+      shell: |
+        kubectl delete namespace kubernetes-dashboard --kubeconfig /etc/kubernetes/admin.conf
+        kubectl delete secret kubernetes-dashboard-certs -n kubernetes-dashboard --kubeconfig /etc/kubernetes/admin.conf
+        kubectl delete -f recommended_ingress.yaml --kubeconfig /etc/kubernetes/admin.conf
+        kubectl delete -f dashboard-ingress.yml --kubeconfig /etc/kubernetes/admin.conf
+      args:
+        chdir: /home/k8s_yml/dashboard
+      ignore_errors: yes
+        
+    - name: Creating dashboard
+      shell: |
+        /usr/local/openssl/bin/openssl genrsa -out dashboard.key 2048 
+        /usr/local/openssl/bin/openssl req -days 3650 -new -key dashboard.key -out dashboard.csr -subj /C=CN/ST=JiangSu/L=NanJing/O=Shanhy/OU=Shanhy/CN=*.cecdata.com
+        /usr/local/openssl/bin/openssl x509 -req -in dashboard.csr -signkey dashboard.key -out dashboard.crt
+        /usr/local/openssl/bin/openssl x509 -in dashboard.crt -text -noout
+        kubectl create namespace kubernetes-dashboard --kubeconfig /etc/kubernetes/admin.conf
+        kubectl create secret tls kubernetes-dashboard-certs -n kubernetes-dashboard --key dashboard.key --cert dashboard.crt --kubeconfig /etc/kubernetes/admin.conf
+        kubectl create -f recommended_ingress.yaml --kubeconfig /etc/kubernetes/admin.conf
+        kubectl create -f dashboard-ingress.yml --kubeconfig /etc/kubernetes/admin.conf
+      args:
+        chdir: /home/k8s_yml/dashboard
+      

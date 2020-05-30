@@ -1,0 +1,60 @@
+---   
+    - name: Creating group 
+      group:
+        name: "{{item.name}}"
+        state: present
+      with_items:
+        - {name: dsm}
+        - {name: rawdata}
+        - {name: bdp_sys}
+    
+    - name: Creating user 
+      user:
+        name: "{{item.name}}"
+        group: "{{item.group}}"
+        state: present
+      with_items:
+        - {name: dsm, group: dsm}
+        - {name: rawdata, group: dsm}
+        - {name: bdp_sys, group: bdp_sys}
+    
+    - name: Creating user and database
+      become: yes
+      become_user: postgres
+      shell: psql -c "{{item.sql}}" 
+      with_items:
+        - {sql: select pg_terminate_backend(pg_stat_activity.pid) from pg_stat_activity where datname='dsm' AND pid<>pg_backend_pid();}  
+        - {sql: select pg_terminate_backend(pg_stat_activity.pid) from pg_stat_activity where datname='bdp_sys' AND pid<>pg_backend_pid();}  
+        - {sql: drop database if exists dsm ;} 
+        - {sql: drop database if exists bdp_sys ;}
+        - {sql: drop user if exists dsm ;}    
+        - {sql: drop user if exists bdp_sys;} 
+        - {sql: "create user bdp_sys with password '{{bdp_sys_pwd}}';"}   
+        - {sql: "create user dsm with password '{{dsm_pwd}}';"}          
+        - {sql: create database bdp_sys owner bdp_sys;} 
+        - {sql: create database dsm owner dsm;} 
+
+    - name: Creating schema 
+      become: yes
+      become_user: bdp_sys
+      shell: psql bdp_sys -c "{{item.sql}}" 
+      with_items:
+        - {sql: drop schema if exists kafka2hive;}  
+        - {sql: create schema kafka2hive authorization bdp_sys;}        
+
+      
+      
+      
+        
+      
+        
+
+        
+        
+      
+
+
+    
+  
+  
+   

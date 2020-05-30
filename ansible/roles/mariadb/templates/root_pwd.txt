@@ -1,0 +1,5 @@
+use mysql;
+update user set authentication_string=password('{{root_pwd}}'),password_expired='N',password_last_changed=now() where user='root';
+flush privileges;
+alter user 'root'@'localhost' identified by '{{root_pwd}}';
+flush privileges;

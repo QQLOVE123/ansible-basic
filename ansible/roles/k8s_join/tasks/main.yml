@@ -1,0 +1,31 @@
+---
+    - name: Copying cert files
+      shell: sh /root/cert-main-master.sh
+      
+    - name: Creating new token-ca-cert-hash
+      shell: kubeadm token create --print-join-command
+      register: join_line
+      
+    - name: Printing join_line
+      debug: msg="{{join_line.stdout}}"
+
+    - name: Deleting vars join_line
+      lineinfile:
+        path: "{{item.path}}"
+        regexp: "join_line"
+        state: absent
+      with_items:
+        - {path: /etc/ansible_basic/roles/k8s_master02/vars/main.yml}
+        - {path: /etc/ansible_basic/roles/k8s_master03/vars/main.yml}
+        - {path: /etc/ansible_basic/roles/k8s_master_recover/vars/main.yml}
+        - {path: /etc/ansible_basic/roles/k8s_work/vars/main.yml}
+              
+    - name: Creating vars join_line
+      lineinfile:
+        path: "{{item.path}}"
+        line: "join_line: {{join_line.stdout}}"
+      with_items:
+        - {path: /etc/ansible_basic/roles/k8s_master02/vars/main.yml}
+        - {path: /etc/ansible_basic/roles/k8s_master03/vars/main.yml}
+        - {path: /etc/ansible_basic/roles/k8s_master_recover/vars/main.yml}
+        - {path: /etc/ansible_basic/roles/k8s_work/vars/main.yml}

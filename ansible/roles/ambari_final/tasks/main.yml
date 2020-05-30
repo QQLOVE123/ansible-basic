@@ -1,0 +1,81 @@
+--- 
+    - name: Waiting for impala
+      debug: msg="等待impala部署完成"  
+      
+    - name: Waiting for impala
+      wait_for:
+        path: /etc/default/impala
+        state: present
+
+    - name: Impala installed
+      debug: msg="impala部署完成"  
+      
+    - name: Copying files to /etc/impala/conf/
+      shell: |     
+        \cp /etc/hive/conf/hive-site.xml /etc/impala/conf
+        \cp /etc/hadoop/conf/hdfs-site.xml /etc/impala/conf
+        \cp /etc/hadoop/conf/core-site.xml /etc/impala/conf       
+        
+    - name: Removing files
+      file: 
+        name: /usr/lib/impala/lib
+        state: absent
+    
+    - name: Unarchiving impala-lib.zip
+      unarchive:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+      with_items:
+        - {src: /etc/ansible/roles/ambari_final/files/impala-lib.zip,dest: /usr/lib/impala/}  
+
+    - name: Deleting kudu configs
+      lineinfile:
+        dest: /etc/default/impala
+        regexp: "-kudu_master_hosts=bdpnode01:7051,bdpnode02:7051,bdpnode03:7051"
+        state: absent   
+
+    - name: Adding kudu configs
+      lineinfile:
+        dest: /etc/default/impala
+        insertafter: '-be_port'
+        line: "    -kudu_master_hosts=bdpnode01:7051,bdpnode02:7051,bdpnode03:7051\""
+        create: yes    
+        
+    - name: Deleting utils configs
+      lineinfile:
+        dest: /etc/default/bigtop-utils
+        line: "JAVA_HOME"
+        state: absent
+
+    - name: Adding utils configs
+      lineinfile:
+        dest: /etc/default/bigtop-utils
+        line: "export JAVA_HOME=/usr/local/jdk1.8.0_191"
+        create: yes
+        
+    - name: Waiting for kudu
+      debug: msg="等待kudu部署完成"  
+      
+    - name: Waiting for kudu
+      wait_for:
+        path: /var/lib/ambari-agent/cache/stacks/HDP/2.6/services/KUDU/package/templates/kudu-master.j2
+        state: present
+        timeout: 600
+
+    - name: Kudu installed
+      debug: msg="kudu部署完成"  
+        
+    - name: Changing file name
+      shell: |
+        cd /var/lib/ambari-agent/cache/stacks/HDP/2.6/services/KUDU/package/templates/
+        mv kudu-master.j2 kudu_master.j2
+      args:
+        removes: /var/lib/ambari-agent/cache/stacks/HDP/2.6/services/KUDU/package/templates/kudu-master.j2
+              
+    - name: Changing file name
+      shell: |
+        cd /var/lib/ambari-agent/cache/stacks/HDP/2.6/services/KUDU/package/templates/
+        mv kudu-tserver.j2 kudu_tserver.j2
+      args:
+        removes: /var/lib/ambari-agent/cache/stacks/HDP/2.6/services/KUDU/package/templates/kudu-tserver.j2
+        

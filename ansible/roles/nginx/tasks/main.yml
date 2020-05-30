@@ -1,0 +1,66 @@
+---
+    - name: Creating remote directory
+      file:
+        path: /opt/deploy/nginx/
+        state: directory
+        
+    - name: Copying rpm packages to remote server
+      copy:
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        owner: root
+        group: root
+        mode: 0755
+      with_items:
+        - {src: '/etc/ansible/roles/nginx/files',dest: /opt/deploy/nginx/}
+        
+    - name: Nginx installed
+      shell: ps -ef |grep nginx |grep -v grep |wc -l
+      register: result
+      
+    - name: Stopping nginx service
+      systemd:
+        name: nginx
+        state: stopped
+        enabled: yes
+      ignore_errors: yes
+      when: result.stdout != '0'
+        
+    - name: Removing nginx files
+      file:
+        path: "{{item.file}}"
+        state: "{{item.state}}"
+      with_items:
+        - {file: /usr/sbin/nginx,state: absent}
+        - {file: /etc/nginx,state:  absent}
+        - {file: /etc/init.d/nginx,state: absent}
+        
+    - name: Uninstall installed nginx   
+      yum:
+        name: nginx
+        state: absent
+        
+    - name: Installing nginx  
+      shell: rpm -ivh /opt/deploy/nginx/files/*rpm --nodeps --force
+      
+    - name: Replacing nginx.conf 
+      template:
+        src: nginx.conf 
+        dest: /etc/nginx/nginx.conf
+
+    - name: Starting nginx  
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+        
+    - name: Nginx installed unsuccessfully
+      shell: |
+        ps -ef |grep nginx |grep -v grep | wc -l
+      register: result
+      failed_when: result.stdout == '0'
+      
+    - name: Nginx installed successfully
+      debug: msg="服务器{{IP}}成功部署nginx"
+      when: result.stdout !='0'
+

@@ -1,0 +1,44 @@
+--- #大概耗时：
+    - name: Creating group dc_sys
+      group:
+        name: dc_sys
+        state: present
+  
+    - name: Creating user dc_sys
+      user:
+        name: dc_sys
+        group: dc_sys
+        state: present
+
+    - name: Umounting /updpkg
+      shell: umount /updpkg
+      ignore_errors: yes
+      
+    - name: Creating directory /updpkg 
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+        owner: dc_sys
+        group: dc_sys
+      with_items:
+        - {path: /updpkg,state: absent}
+        - {path: /updpkg,state: directory}
+
+    - name: Creating directory /opt/deploy/rpm/nfs
+      file: 
+        path: /opt/deploy/rpm/nfs 
+        state: directory      
+        
+    - name:  Copying nfs rpm to remote /opt/deploy/rpm/nfs
+      copy: 
+        src: /etc/ansible/roles/nfs_client/files/nfs-rpm
+        dest: /opt/deploy/rpm/nfs
+        
+    - name: Installing nfs rpm
+      shell: rpm -ivh  /opt/deploy/rpm/nfs/nfs-rpm/* --nodeps --force   
+      
+    - name: Mounting updpkg from {{dcc01}}:/updpkg
+      shell: "mount -t nfs {{dcc01}}:/updpkg /updpkg"
+      
+      
+   

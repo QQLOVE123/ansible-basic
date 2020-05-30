@@ -1,0 +1,54 @@
+---
+    - name: Copying pexpect packages
+      copy: 
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        mode: 0755
+      with_items:
+        - {src: /etc/ansible_basic/roles/pexpect/files/pexpect-4.8.0.tar.gz,dest: /opt/deploy}
+        - {src: /etc/ansible_basic/roles/pexpect/files/ptyprocess-0.6.0.tar.gz,dest: /opt/deploy} 
+
+    - name: Copying pexpect-4.8.0.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/pexpect-4.8.0.tar.gz |wc -l
+      register: result
+      failed_when: result.stdout =='0'
+
+    - name: Copying ptyprocess-0.6.0.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/ptyprocess-0.6.0.tar.gz |wc -l
+      register: result
+      failed_when: result.stdout =='0'
+    
+    - name: Copying successfully
+      debug: msg='成功复制pexpect包到服务器{{IP}}'
+    
+    - name: Unarchiving pepect packages
+      unarchive: 
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+        creates: "{{item.creates}}"
+        remote_src: yes 
+      with_items:
+        - {src: '/opt/deploy/pexpect-4.8.0.tar.gz',dest: /opt/deploy,creates: '/opt/deploy/pexpect-4.8.0'}
+        - {src: '/opt/deploy/ptyprocess-0.6.0.tar.gz',dest: /opt/deploy,creates: '/opt/deploy/ptyprocess-0.6.0'} 
+
+    - name: Unarchiving ptyprocess-0.6.0.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/ptyprocess-0.6.0|wc -l
+      register: result
+      failed_when: result.stdout =='0'
+      
+    - name: Unarchiving pexpect-4.8.0.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/pexpect-4.8.0
+      register: result
+      failed_when: result.stdout =='0'
+    
+    - name: Unarchiving successfully
+      debug: msg='成功解压pexpect包到服务器{{IP}}'    
+      
+    - name: Installing pexpect 
+      shell: |
+        cd /opt/deploy/ptyprocess-0.6.0 
+        python setup.py install
+        cd /opt/deploy/pexpect-4.8.0
+        python setup.py install
+
+

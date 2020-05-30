@@ -1,0 +1,185 @@
+---
+    - name: Creating remote directory
+      file:
+        path: /opt/deploy/mysql/
+        state: directory
+        
+    - name: Copying rpm packages to remote server
+      copy:
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        owner: root
+        group: root
+        mode: 0755
+      with_items:
+        - {src: '/etc/ansible/roles/mysql/files',dest: /opt/deploy/mysql/}
+    
+    - name: Unarchiving PyMySQL packages
+      unarchive: 
+        src: '{{item.src}}'
+        dest: '{{item.dest}}'
+        creates: '{{item.creates}}'
+      with_items:
+        - {src: /etc/ansible/roles/mysql/files/PyMySQL-0.9.3.tar.gz,dest: /opt/deploy/mysql/files,creates: /opt/deploy/mysql/files/PyMySQL-0.9.3}
+
+    - name: Unarchiving PyMySQL-0.9.3.tar.gz unsuccessfully
+      shell: /usr/bin/ls /opt/deploy/mysql/files/PyMySQL-0.9.3 |wc -l
+      register: result
+      failed_when: result.stdout =='0'
+    
+    - name: Unarchiving successfully
+      debug: msg='成功解压PyMySQL包到服务器{{IP}}'    
+      
+    - name: Installing PyMySQL 
+      shell: |
+        cd /opt/deploy/mysql/files/PyMySQL-0.9.3
+        python setup.py install
+        
+    - name: Checking whether mysqld process exists
+      shell: ps -ef |grep mysqld |grep -v grep | wc -l
+      register: result
+      
+    - name: Stopping mysql  
+      systemd:
+        name: mysqld.service
+        state: stopped
+      when: result.stdout != '0'
+      ignore_errors: yes
+
+    - name: Mysql stopped unsuccessfully 
+      shell: ps -ef |grep '/usr/sbin/mysqld' |grep -v grep | wc -l
+      register: result
+      failed_when: result.stdout != '0'
+
+    - name: Mysql stopped successfully 
+      debug: msg='mysql进程停止成功'
+
+    - name: Checking whether mysql rpm exists 
+      shell: rpm -qa |grep mysql |wc -l
+      register: result 
+
+    - name: Uninstalling mysql 
+      shell: |            
+        rpm -qa |grep mysql |awk '{print $0}'|xargs rpm -e --nodeps
+      when: result.stdout !='0'        
+
+    - name: Checking whether mariadb rpm exists 
+      shell: rpm -qa |grep mariadb |wc -l
+      register: result 
+
+    - name: Uninstalling mariadb 
+      shell: |            
+        rpm -qa |grep mariadb |awk '{print $0}'|xargs rpm -e --nodeps 
+      when: result.stdout !='0'   
+      
+    - name: Mysql uninstalled unsuccessfully 
+      shell: rpm -qa |grep mysql |wc -l
+      register: result
+      failed_when: result.stdout != '0'
+
+    - name: Mysql uninstalled successfully
+      debug: msg='mysql卸载成功rmp包'
+      
+    - name: Removing mysql files   
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+      with_items:
+        - {path: '/usr/share/mysql',state: 'absent'}
+        - {path: '/usr/lib64/mysql',state: 'absent'}
+        - {path: '/usr/include/mysql',state: 'absent'}
+        - {path: '/usr/bin/mysql',state: 'absent'}
+        - {path: '/usr/share/man/man1/mysql.1.gz',state: 'absent'}
+        - {path: '/etc/my.cnf',state: 'absent'}
+        - {path: '/usr/local/mysql/data',state: 'absent'}
+        
+    - name: Creating mysql files   
+      file:
+        path: "{{item.path}}"
+        state: "{{item.state}}"
+      with_items:
+        - {path: '/usr/local/mysql/data',state: 'directory'}
+        
+    - name: Installing mysql
+      shell: rpm -ivh /opt/deploy/mysql/files/*rpm --nodeps --force
+        
+    - name: Installing others
+      shell: rpm -ivh /opt/deploy/mysql/files/"{{item.package}}" --nodeps --force
+      with_items:
+        - {package: mariadb-libs-5.5.64-1.el7.x86_64.rpm}
+        - {package: MySQL-python-1.2.5-1.el7.x86_64.rpm}
+
+    - name: Coping root_pwd.txt to target host
+      template:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+      with_items:
+        - {src: root_pwd.txt,dest: /opt/deploy/mysql/files}   
+        - {src: my.cnf,dest: /etc/}        
+      
+    - name: Starting mysql 
+      systemd:
+        name: "{{item.name}}"
+        state: "{{item.state}}"
+        enabled: "{{item.enabled}}"
+      register: status
+      failed_when:
+        - status is failed
+        - item.state != "started"
+      with_items:
+        - {name: mysqld.service, state: started,enabled: yes}
+        
+    - name: Mysql started unsuccessfully
+      shell: ss -ntl |grep 3306 |wc -l
+      register: result
+      failed_when: result.stdout == '0'
+      
+    - name: Mysql started successfully
+      debug: msg="{{IP}}mysql启动成功"
+        
+    - name: Creating user readonly
+      mysql_user:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        name: readonly
+        password: "{{mysql_readonly_pwd}}"
+        priv: '*.*:SELECT'
+        state: present
+        
+    - name: Setting variables
+      mysql_variables:
+        login_user: root
+        login_password: "{{mysql_root_pwd}}"
+        variable: "{{item.variable}}"
+        value: "{{item.value}}"
+      with_items:
+        - {variable: 'character_set_client' ,value: 'utf8'}
+        - {variable: 'character_set_connection' ,value: 'utf8'}
+        - {variable: 'character_set_results' ,value: 'utf8'}
+        #- {variable: 'validate_password_policy' ,value: '0'}     
+
+    - name: Configing my.cnf
+      lineinfile:
+        path: /etc/my.cnf
+        regexp: 'init-file'
+        state: absent
+        
+    - name: Restarting mysql 
+      systemd:
+        name: "{{item.name}}"
+        state: "{{item.state}}"
+        enabled: "{{item.enabled}}"
+      register: status
+      failed_when:
+        - status is failed
+        - item.state != "started"
+      with_items:
+        - {name: mysqld.service, state: restarted,enabled: yes}
+        
+    - name: Mysql started unsuccessfully
+      shell: ss -ntl |grep 3306 |wc -l
+      register: result
+      failed_when: result.stdout == '0'
+      
+    - name: Mysql started successfully
+      debug: msg="mysql重启动成功"
